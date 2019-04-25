@@ -4,9 +4,11 @@
 #include <iostream>
 #include <limits>
 #include <string>
+#include <cstring>
 #include <vector>
 #include <cmath>
 #include <algorithm>
+#include <queue>
 //#include <execution>
 //#include <numeric>
 #include <pthread.h>
@@ -20,6 +22,11 @@
 //From "parallel_stable_sort.h"
 #define SORT_CUT_OFF 500
 #define MERGE_CUT_OFF 2000
+//Also, see strict_differences and candis_distance
+#define EDIT_DISTANCE 7
+#define READ_BLOCK_SIZE 2000
+#define READ_LEN_MAX 160
+#define READ_LEN_U32 15
 
 #define __UTILS_CHAR_UINT8 	\
     static inline std::uint8_t charToUint8(const char c) {\
@@ -55,6 +62,33 @@ static inline int hashValue(const std::uint8_t *seq, int windowSize) {\
 	return val;\
 }
 
+struct Read{
+	int length;
+	std::uint8_t bases[READ_LEN_MAX];
+	std::uint8_t rc_bases[READ_LEN_MAX];
+	char charBases[READ_LEN_MAX];
+};
+
+// Can handle reads of length up to 158
+// 158 bases x 3 bits/base + 6 spare bits
+struct UnmappedRead{
+    std::uint32_t fwd_read[READ_LEN_U32];
+    std::uint32_t bwd_read[READ_LEN_U32];
+    std::uint32_t location;
+};
+
+// Can handle reads of length up to 158
+// 158 bases x 3 bits/base + 6 spare bits
+// MS-Nibble holds number of differences
+struct MappedRead{
+    std::uint32_t read[READ_LEN_U32];
+    std::uint32_t location;
+    std::uint32_t base_location;
+    int diff_location;
+    std::uint32_t id;
+    char tmp_cigar[16];
+};
+
 struct InputArgs{
     std::string operation;
     std::string refFileName;
@@ -81,6 +115,9 @@ struct CompressionDataStructures{
     std::uint8_t * ref_bases;
     std::vector<std::uint32_t> lookup_table;
     std::vector<std::uint32_t> occurrence_table;
+    std::vector<UnmappedRead> unmapped_reads;
+    std::vector<MappedRead> fwd_mapped_reads;
+    std::vector<MappedRead> bwd_mapped_reads;
     
     CompressionDataStructures(){
         ref_length = 0;

@@ -10,6 +10,7 @@ std::vector<std::uint32_t> last_hash_counts;
 
 KSEQ_INIT(int, read)
 __UTILS_CHAR_UINT8
+__UTILS_HASH_VALUE
 
 int parse_reference_com(InputArgs& in_args, CompressionDataStructures& comDS) {
 	assert (comDS.ref_length == 0);
@@ -67,7 +68,6 @@ int parse_reference_com(InputArgs& in_args, CompressionDataStructures& comDS) {
     return 0;
 }
 
-__UTILS_HASH_VALUE
 void *constructIndex1Thread(void *arg) {
     struct IndexArgsForThread * tap;
     tap = (struct IndexArgsForThread *) arg;
@@ -83,7 +83,9 @@ void *constructIndex1Thread(void *arg) {
     for (std::uint32_t i = index_start; i <= index_end; i++) {
         tmpOccurrenceTable[i].location = i;
         int hashVal = hashValue(tap->iaft_com_ds->ref_bases + i, KMER_LENGTH);
+#if !NDEBUG
         assert (hashVal >= 0);
+#endif
         tmpOccurrenceTable[i].hashValue = hashVal;
     }
     
@@ -135,10 +137,12 @@ void *constructIndex2Thread(void *arg) {
     i_prev = i_curr;
     i_curr += 1;
     for (; i_curr <= index_end; i_curr++) {
+#if !NDEBUG
         assert (tmpOccurrenceTable[i_prev].hashValue <= tmpOccurrenceTable[i_curr].hashValue);
         if (tmpOccurrenceTable[i_prev].hashValue == tmpOccurrenceTable[i_curr].hashValue) {
             assert (tmpOccurrenceTable[i_prev].location < tmpOccurrenceTable[i_curr].location);
         }
+#endif
         
         tap->iaft_com_ds->occurrence_table[i_curr] = tmpOccurrenceTable[i_curr].location;
         if (tmpOccurrenceTable[i_curr].hashValue == tmpOccurrenceTable[i_prev].hashValue) {
@@ -192,6 +196,8 @@ void *constructIndex2Thread(void *arg) {
     }
     last_hash_counts[tap->iaft_thread_id] = sumVar;
     
+    std::cout << tap->iaft_thread_id << " : " << tap->iaft_com_ds->lookup_table[index_start] << 
+    " : " << tap->iaft_com_ds->lookup_table[index_end] << " : " << sumVar << std::endl;
     pthread_barrier_wait(tap->iaft_barrier);
     
     sumVar = 0;
@@ -201,6 +207,8 @@ void *constructIndex2Thread(void *arg) {
     for (std::uint32_t i = index_start; i <= index_end; i++) {
         tap->iaft_com_ds->lookup_table[i] += sumVar;
     }
+    std::cout << tap->iaft_thread_id << " : " << tap->iaft_com_ds->lookup_table[index_start] << 
+    " : " << tap->iaft_com_ds->lookup_table[index_end] << " : " << sumVar << std::endl;
     
     return NULL;
 }
@@ -305,14 +313,16 @@ int construct_index(InputArgs& in_args, CompressionDataStructures& comDS) {
 
 int build_index(InputArgs& in_args, CompressionDataStructures& comDS) {
 	double startTime;
-
+    
     startTime = realtime();
     parse_reference_com(in_args, comDS);
     std::cout << "Loaded reference into memory in " << realtime() - startTime << " s." << std::endl;
+    std::cout << "CPU time : " << cputime() << " s." << std::endl;
     
     startTime = realtime();
     construct_index(in_args, comDS);
     std::cout << "Built index in " << realtime() - startTime << " s." << std::endl;
+    std::cout << "CPU time : " << cputime() << " s." << std::endl;
     
 	return 0;
 }

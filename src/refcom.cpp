@@ -135,17 +135,24 @@ int refcom_compression(InputArgs& in_args, CompressionDataStructures& comDS) {
         std::cerr << "Thread count must be at least 2" << std::endl;
         return 1;
     }
-    if ((in_args.rd1Length < 1 ) || (in_args.rd1Length > 255)) {
-        std::cerr << "Rd1 length must be between 0 and 256" << std::endl;
+    if ((in_args.rd1Length < 1 ) || (in_args.rd1Length > 158)) {
+        std::cerr << "Rd1 length must be between 1 and 158" << std::endl;
         return 1;
     }
-    if ((in_args.rd2Length < 1 ) || (in_args.rd2Length > 255)) {
-        std::cerr << "Rd2 length must be between 0 and 256" << std::endl;
+    if ((in_args.rd2Length < 1 ) || (in_args.rd2Length > 158)) {
+        std::cerr << "Rd2 length must be between 1 and 158" << std::endl;
         return 1;
     }
+    
     build_index(in_args, comDS);
     
-    //TODO: Free ref_bases after mapping is complete
+    align_reads(in_args, comDS);
+    std::vector<std::uint32_t>().swap(comDS.lookup_table); //Free memory
+    std::vector<std::uint32_t>().swap(comDS.occurrence_table); //Free memory
+    
+    //compress_reads(in_args, comDS);
+    free(comDS.ref_bases); comDS.ref_length = 0; //Free memory
+    
     return 0;
 }
 
