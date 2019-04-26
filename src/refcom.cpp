@@ -147,10 +147,9 @@ int refcom_compression(InputArgs& in_args, CompressionDataStructures& comDS) {
     build_index(in_args, comDS);
     
     align_reads(in_args, comDS);
-    std::vector<std::uint32_t>().swap(comDS.lookup_table); //Free memory
-    std::vector<std::uint32_t>().swap(comDS.occurrence_table); //Free memory
     
     //compress_reads(in_args, comDS);
+    //TODO: Move below inside compress_reads
     free(comDS.ref_bases); comDS.ref_length = 0; //Free memory
     
     return 0;

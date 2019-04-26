@@ -74,12 +74,12 @@ std::queue<UnmappedRead>& pr_u_read_queue, AlignArgsForThread * pr_tap) {
     while (!pr_f_read_queue.empty()) {
         pr_fwd_read = pr_f_read_queue.front();
         pr_f_read_queue.pop();
-        pr_fwd_read.id = (std::uint32_t) pr_tap->aaft_com_ds->fwd_mapped_reads.size();
-        pr_tap->aaft_com_ds->fwd_mapped_reads.push_back(pr_fwd_read);
+        pr_fwd_read.id = (std::uint32_t) (pr_tap->aaft_com_ds->fwd_mapped_reads).size();
+        (pr_tap->aaft_com_ds->fwd_mapped_reads).push_back(pr_fwd_read);
         pr_bwd_read = pr_b_read_queue.front();
         pr_b_read_queue.pop();
-        pr_bwd_read.id = (std::uint32_t) pr_tap->aaft_com_ds->bwd_mapped_reads.size();
-        pr_tap->aaft_com_ds->bwd_mapped_reads.push_back(pr_bwd_read);
+        pr_bwd_read.id = (std::uint32_t) (pr_tap->aaft_com_ds->bwd_mapped_reads).size();
+        (pr_tap->aaft_com_ds->bwd_mapped_reads).push_back(pr_bwd_read);
     }
 #if !NDEBUG
     assert (pr_b_read_queue.empty());
@@ -88,7 +88,7 @@ std::queue<UnmappedRead>& pr_u_read_queue, AlignArgsForThread * pr_tap) {
     while (!pr_u_read_queue.empty()) {
         pr_unm_read = pr_u_read_queue.front();
         pr_u_read_queue.pop();
-        pr_tap->aaft_com_ds->unmapped_reads.push_back(pr_unm_read);
+        (pr_tap->aaft_com_ds->unmapped_reads).push_back(pr_unm_read);
     }
 }
 
@@ -107,11 +107,6 @@ void *alignReads1Thread(void *arg) {
     std::queue<MappedRead> fwd_read_queue;
     std::queue<MappedRead> bwd_read_queue;
     std::queue<UnmappedRead> unm_read_queue;
-    //Read my_read_1, my_read_2;
-    //UnmappedRead my_unm_read;
-    //MappedRead my_fwd_read, my_bwd_read;
-    //uint32_t places[1952];//320*6 = 1920
-    //TwoTuple init_candis[V_CPU*80];
     VerifyArgsForThread vaft;
     vaft.vaft_thread_id = tap->aaft_thread_id;
     vaft.vaft_in_args = tap->aaft_in_args;
@@ -181,28 +176,28 @@ void *alignReads1Thread(void *arg) {
 }
 
 void initialize_alignment_stats(InputArgs& in_args, AlignmentStatistics * ias_asp) {
-    ias_asp->as_unmapped_reads_n_count.resize(in_args.threadCount, 0);
-    ias_asp->as_unmapped_diffs_n_count.resize(in_args.threadCount, 0);
-    ias_asp->as_paired_read_count.resize(in_args.threadCount, 0);
-    ias_asp->as_paired_mapped_count.resize(in_args.threadCount, 0);
-    ias_asp->as_single_mapped_count.resize(in_args.threadCount, 0);
-    ias_asp->as_both_unmapped_count.resize(in_args.threadCount, 0);
-    ias_asp->as_can_unmapped_count.resize(in_args.threadCount, 0);
-    ias_asp->as_pla_unmapped_count.resize(in_args.threadCount, 0);
-    ias_asp->as_nil_unmapped_count.resize(in_args.threadCount, 0);
+    (ias_asp->as_unmapped_reads_n_count).resize(in_args.threadCount, 0);
+    (ias_asp->as_unmapped_diffs_n_count).resize(in_args.threadCount, 0);
+    (ias_asp->as_paired_read_count).resize(in_args.threadCount, 0);
+    (ias_asp->as_paired_mapped_count).resize(in_args.threadCount, 0);
+    (ias_asp->as_single_mapped_count).resize(in_args.threadCount, 0);
+    (ias_asp->as_both_unmapped_count).resize(in_args.threadCount, 0);
+    (ias_asp->as_can_unmapped_count).resize(in_args.threadCount, 0);
+    (ias_asp->as_pla_unmapped_count).resize(in_args.threadCount, 0);
+    (ias_asp->as_nil_unmapped_count).resize(in_args.threadCount, 0);
     
-    ias_asp->as_differences_count.resize((in_args.threadCount * 16), 0);
+    (ias_asp->as_differences_count).resize((in_args.threadCount * 16), 0);
     
-    ias_asp->as_less_than_length_count.resize(in_args.threadCount, 0);
-    ias_asp->as_equal_to_length_count.resize(in_args.threadCount, 0);
-    ias_asp->as_more_than_length_count.resize(in_args.threadCount, 0);
-    ias_asp->as_neg_diff_count_bef.resize(in_args.threadCount, 0);
-    ias_asp->as_neg_diff_count_aft.resize(in_args.threadCount, 0);
-    ias_asp->as_cigar_unequal_count.resize(in_args.threadCount, 0);
-    ias_asp->as_location_unequal_count.resize(in_args.threadCount, 0);
-    ias_asp->as_soft_clipped_count.resize(in_args.threadCount, 0);
+    (ias_asp->as_less_than_length_count).resize(in_args.threadCount, 0);
+    (ias_asp->as_equal_to_length_count).resize(in_args.threadCount, 0);
+    (ias_asp->as_more_than_length_count).resize(in_args.threadCount, 0);
+    (ias_asp->as_neg_diff_count_bef).resize(in_args.threadCount, 0);
+    (ias_asp->as_neg_diff_count_aft).resize(in_args.threadCount, 0);
+    (ias_asp->as_cigar_unequal_count).resize(in_args.threadCount, 0);
+    (ias_asp->as_location_unequal_count).resize(in_args.threadCount, 0);
+    (ias_asp->as_soft_clipped_count).resize(in_args.threadCount, 0);
     
-    ias_asp->as_paired_read_order.resize((in_args.threadCount * 8), 0);
+    (ias_asp->as_paired_read_order).resize((in_args.threadCount * 8), 0);
 }
 
 void display_alignment_stats(InputArgs& in_args, AlignmentStatistics * das_asp) {
@@ -224,71 +219,71 @@ void display_alignment_stats(InputArgs& in_args, AlignmentStatistics * das_asp) 
     std::size_t total_unmapped_reads_n_count = 0;
     std::size_t total_unmapped_diffs_n_count = 0;
     for (std::uint32_t i = 0; i < in_args.threadCount; i++) {
-        total_paired_read_count += das_asp->as_paired_read_count[i];
-        total_paired_mapped_count += das_asp->as_paired_mapped_count[i];
-        total_single_mapped_count += das_asp->as_single_mapped_count[i];
-        total_both_unmapped_count += das_asp->as_both_unmapped_count[i];
-        total_can_unmapped_count += das_asp->as_can_unmapped_count[i];
-        total_pla_unmapped_count += das_asp->as_pla_unmapped_count[i];
-        total_nil_unmapped_count += das_asp->as_nil_unmapped_count[i];
-        total_less_than_length_count += das_asp->as_less_than_length_count[i];
-        total_equal_to_length_count += das_asp->as_equal_to_length_count[i];
-        total_more_than_length_count += das_asp->as_more_than_length_count[i];
-        total_location_unequal_count += das_asp->as_location_unequal_count[i];
-        total_cigar_unequal_count += das_asp->as_cigar_unequal_count[i];
-        total_neg_diff_count_bef += das_asp->as_neg_diff_count_bef[i];
-        total_neg_diff_count_aft += das_asp->as_neg_diff_count_aft[i];
-        total_soft_clipped_count += das_asp->as_soft_clipped_count[i];
-        total_unmapped_reads_n_count += das_asp->as_unmapped_reads_n_count[i];
-        total_unmapped_diffs_n_count += das_asp->as_unmapped_diffs_n_count[i];
+        total_paired_read_count += (das_asp->as_paired_read_count)[i];
+        total_paired_mapped_count += (das_asp->as_paired_mapped_count)[i];
+        total_single_mapped_count += (das_asp->as_single_mapped_count)[i];
+        total_both_unmapped_count += (das_asp->as_both_unmapped_count)[i];
+        total_can_unmapped_count += (das_asp->as_can_unmapped_count)[i];
+        total_pla_unmapped_count += (das_asp->as_pla_unmapped_count)[i];
+        total_nil_unmapped_count += (das_asp->as_nil_unmapped_count)[i];
+        total_less_than_length_count += (das_asp->as_less_than_length_count)[i];
+        total_equal_to_length_count += (das_asp->as_equal_to_length_count)[i];
+        total_more_than_length_count += (das_asp->as_more_than_length_count)[i];
+        total_location_unequal_count += (das_asp->as_location_unequal_count)[i];
+        total_cigar_unequal_count += (das_asp->as_cigar_unequal_count)[i];
+        total_neg_diff_count_bef += (das_asp->as_neg_diff_count_bef)[i];
+        total_neg_diff_count_aft += (das_asp->as_neg_diff_count_aft)[i];
+        total_soft_clipped_count += (das_asp->as_soft_clipped_count)[i];
+        total_unmapped_reads_n_count += (das_asp->as_unmapped_reads_n_count)[i];
+        total_unmapped_diffs_n_count += (das_asp->as_unmapped_diffs_n_count)[i];
     }
     std::size_t total_differences_count[16] = {0};
     std::size_t all_differences_count = 0;
     for (std::uint32_t i = 0; i < in_args.threadCount; i++) {
         for (std::uint32_t j = 0; j < 16; j++) {
-            total_differences_count[j] += das_asp->as_differences_count[i*16 + j];
+            total_differences_count[j] += (das_asp->as_differences_count)[i*16 + j];
         }
     }
     std::size_t total_paired_read_order[8] = {0};
     for (std::uint32_t i = 0; i < in_args.threadCount; i++) {
         for (std::uint32_t j = 0; j < 8; j++) {
-            total_paired_read_order[j] += das_asp->as_paired_read_order[i*8 + j];
+            total_paired_read_order[j] += (das_asp->as_paired_read_order)[i*8 + j];
         }
     }
-    fprintf(stderr, "total_paired_read_count : %lu.\n", total_paired_read_count);
-    fprintf(stderr, "total_paired_mapped_count : %lu, %.2lf.\n", total_paired_mapped_count,
+    fprintf(stdout, "total_paired_read_count : %lu.\n", total_paired_read_count);
+    fprintf(stdout, "total_paired_mapped_count : %lu, %.2lf.\n", total_paired_mapped_count,
     (((double) total_paired_mapped_count)/((double) total_paired_read_count))*100);
-    fprintf(stderr, "total_single_mapped_count : %lu, %.2lf.\n", total_single_mapped_count,
+    fprintf(stdout, "total_single_mapped_count : %lu, %.2lf.\n", total_single_mapped_count,
     (((double) total_single_mapped_count)/((double) total_paired_read_count))*100);
-    fprintf(stderr, "total_both_unmapped_count : %lu, %.2lf.\n", total_both_unmapped_count,
+    fprintf(stdout, "total_both_unmapped_count : %lu, %.2lf.\n", total_both_unmapped_count,
     (((double) total_both_unmapped_count)/((double) total_paired_read_count))*100);
-    fprintf(stderr, "total_can_unmapped_count  :   %lu, %.2lf.\n", total_can_unmapped_count,
+    fprintf(stdout, "total_can_unmapped_count  :   %lu, %.2lf.\n", total_can_unmapped_count,
     (((double) total_can_unmapped_count)/((double) total_paired_read_count))*100);
-    fprintf(stderr, "total_pla_unmapped_count  :   %lu, %.2lf.\n", total_pla_unmapped_count,
+    fprintf(stdout, "total_pla_unmapped_count  :   %lu, %.2lf.\n", total_pla_unmapped_count,
     (((double) total_pla_unmapped_count)/((double) total_paired_read_count))*100);
-    fprintf(stderr, "total_nil_unmapped_count  :   %lu, %.2lf.\n", total_nil_unmapped_count,
+    fprintf(stdout, "total_nil_unmapped_count  :   %lu, %.2lf.\n", total_nil_unmapped_count,
     (((double) total_nil_unmapped_count)/((double) total_paired_read_count))*100);
-    fprintf(stderr, "total_less_than_length_count :  %lu.\n", total_less_than_length_count);
-    fprintf(stderr, "total_equal_to_length_count  :  %lu.\n", total_equal_to_length_count);
-    fprintf(stderr, "total_more_than_length_count :  %lu.\n", total_more_than_length_count);
-    fprintf(stderr, "total_location_unequal_count :  %lu.\n", total_location_unequal_count);
-    fprintf(stderr, "total_cigar_unequal_count    :  %lu.\n", total_cigar_unequal_count);
-    fprintf(stderr, "total_neg_diff_count_bef     :  %lu.\n", total_neg_diff_count_bef);
-    fprintf(stderr, "total_neg_diff_count_aft     :  %lu.\n", total_neg_diff_count_aft);
-    fprintf(stderr, "total_soft_clipped_count     :  %lu.\n", total_soft_clipped_count);
-    uint32_t total_single_read_count = total_paired_read_count * 2;
-    fprintf(stderr, "total_unmapped_reads_n_count : %lu, %.2lf.\n", total_unmapped_reads_n_count,
+    fprintf(stdout, "total_less_than_length_count :  %lu.\n", total_less_than_length_count);
+    fprintf(stdout, "total_equal_to_length_count  :  %lu.\n", total_equal_to_length_count);
+    fprintf(stdout, "total_more_than_length_count :  %lu.\n", total_more_than_length_count);
+    fprintf(stdout, "total_location_unequal_count :  %lu.\n", total_location_unequal_count);
+    fprintf(stdout, "total_cigar_unequal_count    :  %lu.\n", total_cigar_unequal_count);
+    fprintf(stdout, "total_neg_diff_count_bef     :  %lu.\n", total_neg_diff_count_bef);
+    fprintf(stdout, "total_neg_diff_count_aft     :  %lu.\n", total_neg_diff_count_aft);
+    fprintf(stdout, "total_soft_clipped_count     :  %lu.\n", total_soft_clipped_count);
+    std::size_t total_single_read_count = total_paired_read_count * 2;
+    fprintf(stdout, "total_unmapped_reads_n_count : %lu, %.2lf.\n", total_unmapped_reads_n_count,
     (((double) total_unmapped_reads_n_count)/((double) total_single_read_count))*100);
-    fprintf(stderr, "total_unmapped_diffs_n_count : %lu.\n", total_unmapped_diffs_n_count);
+    fprintf(stdout, "total_unmapped_diffs_n_count : %lu.\n", total_unmapped_diffs_n_count);
     for (std::uint32_t j = 0; j < 16; j++) {
-        fprintf(stderr, "total_differences_count[%2u] : %lu, %.2lf.\n", j, total_differences_count[j],
+        fprintf(stdout, "total_differences_count[%2u] : %lu, %.2lf.\n", j, total_differences_count[j],
         (((double) total_differences_count[j])/((double) total_single_read_count))*100);
         all_differences_count += total_differences_count[j];
     }
-    fprintf(stderr, "all_differences_count : %lu, %.2lf.\n", all_differences_count,
+    fprintf(stdout, "all_differences_count : %lu, %.2lf.\n", all_differences_count,
     (((double) all_differences_count)/((double) total_single_read_count))*100);
     for (std::uint32_t j = 0; j < 8; j++) {
-        fprintf(stderr, "total_paired_read_order[%u] : %lu, %.2lf.\n", j, total_paired_read_order[j],
+        fprintf(stdout, "total_paired_read_order[%u] : %lu, %.2lf.\n", j, total_paired_read_order[j],
         (((double) total_paired_read_order[j])/((double) total_paired_mapped_count))*100);
     }
 }
@@ -358,10 +353,13 @@ int perform_alignment(InputArgs& in_args, CompressionDataStructures& comDS) {
 	kseq_destroy(read_seq2);
 	fclose(read_seq_fp2);
     
+    std::vector<std::uint32_t>().swap(comDS.lookup_table); //Free memory
+    std::vector<std::uint32_t>().swap(comDS.occurrence_table); //Free memory
+    
     std::vector<MappedRead>(comDS.fwd_mapped_reads).swap(comDS.fwd_mapped_reads);
     std::vector<MappedRead>(comDS.bwd_mapped_reads).swap(comDS.bwd_mapped_reads);
     std::vector<UnmappedRead>(comDS.unmapped_reads).swap(comDS.unmapped_reads);
-    
+	
 	return 0;
 }
 
