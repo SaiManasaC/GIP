@@ -1466,7 +1466,7 @@ const uint32_t *candidates, const uint32_t candiNum, int16_t *errors, int16_t *l
 }
 #pragma GCC pop_options
 
-inline int CPUAlignKernel(const uint8_t* pattern, const uint8_t* text, int match_site,
+int CPUAlignKernel(const uint8_t* pattern, const uint8_t* text, int match_site,
     char* cigar, const int readLen, int best_error) {
 	int refLen = readLen + 2 * EDIT_DISTANCE;
 	int band_down = 2 * EDIT_DISTANCE;
@@ -1668,4 +1668,91 @@ inline int CPUAlignKernel(const uint8_t* pattern, const uint8_t* text, int match
 	return start_location;
 
 }
+
+void CPUMDTag(const uint8_t* pattern, const uint8_t* text, uint32_t startLocation, char* cigar, int* my_diff_locs, int* my_diff_vals) {
+	int cigarLen = strlen(cigar);
+	char num[READ_LEN_MAX];
+	int numIndex = 0;
+	//int matchNum = 0;
+	const uint8_t *read = text;
+	const uint8_t *reference = pattern + startLocation;
+	int readIndex = 0;
+	int refIndex = 0;
+	my_diff_locs[0] = 0;
+	my_diff_vals[0] = 0;
+
+	for (int ci = 0; ci < cigarLen; ci++) {
+		char c = cigar[ci];
+		if (c >= '0' && c <= '9') {
+			num[numIndex++] = c;
+		} else {
+			num[numIndex] = '\0';
+			int opNum = atoi(num);
+			if (c == 'M') {
+				for (int opi = 0; opi < opNum; opi++) {
+					if (reference[refIndex] != read[readIndex]) {
+						my_diff_locs[0] += 1;
+						my_diff_locs[my_diff_locs[0]] = refIndex;
+						if (read[readIndex] < reference[refIndex]) {
+						    my_diff_vals[my_diff_locs[0]] = read[readIndex];
+						} else {
+						    my_diff_vals[my_diff_locs[0]] = read[readIndex] - 1;
+						}
+						//if (matchNum != 0) {
+						//	matchNum = 0;
+						//}
+					//} else {
+					//	++matchNum;
+					}
+					++refIndex;
+					++readIndex;
+				}
+			} else if (c == 'I') {
+				for (int opi = 0; opi < opNum; opi++) {
+				    my_diff_locs[0] += 1;
+				    my_diff_locs[my_diff_locs[0]] = refIndex;
+				    my_diff_vals[my_diff_locs[0]] = 4 + read[readIndex];
+				    readIndex++;
+				}
+			} else if (c == 'D') {
+				//if (matchNum != 0) {
+				//	matchNum = 0;
+				//}
+				for (int opi = 0; opi < opNum; opi++) {
+				    my_diff_locs[0] += 1;
+				    my_diff_locs[my_diff_locs[0]] = refIndex;
+				    my_diff_vals[my_diff_locs[0]] = 9;
+					refIndex++;
+				}
+			}
+			numIndex = 0;
+		}
+	}
+}
+
+void uncompact_mapped_read (uint8_t * my_bases, uint32_t * my_compact_read, uint32_t my_read_length) {
+    uint32_t ri = 0, k = 0;
+    int z, one_base;
+    for (; ri < my_read_length; ri++) {
+        one_base = 0;
+        z = 1;
+        if (TestBit(my_compact_read, k)) {
+            one_base |= z;
+        }
+        k++;
+        z = (z << 1);
+        if (TestBit(my_compact_read, k)) {
+            one_base |= z;
+        }
+        k++;
+        z = (z << 1);
+        if (TestBit(my_compact_read, k)) {
+            one_base |= z;
+        }
+        k++;
+        //z = (z << 1); //Not necessary
+        my_bases[ri] = (uint8_t) one_base;
+    }
+}
+
 

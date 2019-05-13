@@ -14,6 +14,7 @@ struct IndexArgsForThread{
     std::uint32_t iaft_thread_id;
     InputArgs * iaft_in_args;
     CompressionDataStructures * iaft_com_ds;
+    std::uint32_t iaft_lt_sum;
 };
 
 int parse_reference_com(InputArgs&, CompressionDataStructures&);

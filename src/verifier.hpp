@@ -63,7 +63,9 @@ struct VerifyArgsForThread{
 
 bool NJ_CPUVBM(VerifyArgsForThread *);
 inline void CPUVMBMKernel(VerifyArgsForThread * vaftp, const uint32_t regIndex, const uint8_t* text, const int readLen, const uint32_t *candidates, const uint32_t candiNum, int16_t *errors, int16_t *locations);
-inline int CPUAlignKernel(const uint8_t* pattern, const uint8_t* text, int match_site, char* cigar, const int readLen, int best_error); 
+int CPUAlignKernel(const uint8_t* pattern, const uint8_t* text, int match_site, char* cigar, const int readLen, int best_error); 
+void CPUMDTag(const uint8_t* pattern, const uint8_t* text, uint32_t startLocation, char* cigar, int* my_diff_locs, int* my_diff_vals);
+void uncompact_mapped_read (uint8_t *, uint32_t *, uint32_t);
 
 #endif /* VERIFIER_HPP_ */
 

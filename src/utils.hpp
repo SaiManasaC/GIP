@@ -11,6 +11,7 @@
 #include <queue>
 //#include <execution>
 //#include <numeric>
+#include <stdlib.h>
 #include <pthread.h>
 #include <assert.h>
 #include <unistd.h>
@@ -89,6 +90,18 @@ struct MappedRead{
     char tmp_cigar[16];
 };
 
+struct PairingInfoFwd {
+    std::uint32_t id;
+    std::uint32_t my_rel_posn;
+};
+
+struct PairingInfoBwd {
+    std::uint32_t id;
+    std::uint32_t my_location;
+    std::uint32_t pe_location;
+    std::uint32_t pe_rel_posn;
+};
+
 struct InputArgs{
     std::string operation;
     std::string refFileName;
@@ -100,12 +113,14 @@ struct InputArgs{
     std::uint32_t threadCount;
     std::uint32_t rd1Length;
     std::uint32_t rd2Length;
+    std::uint32_t rdLength;
     //std::uint32_t kmerLength;
 
     InputArgs(){
         threadCount = 2;
         rd1Length   = 0;
         rd2Length   = 0;
+        rdLength    = 0;
         //kmerLength = 0;
     }
 };
@@ -118,6 +133,8 @@ struct CompressionDataStructures{
     std::vector<UnmappedRead> unmapped_reads;
     std::vector<MappedRead> fwd_mapped_reads;
     std::vector<MappedRead> bwd_mapped_reads;
+    std::vector<PairingInfoFwd> fwd_pairing_info;
+    std::vector<PairingInfoBwd> bwd_pairing_info;
     
     CompressionDataStructures(){
         ref_length = 0;
