@@ -545,7 +545,7 @@ void *compactReads4Thread(void *arg) {
     
     std::uint32_t my_rel_posn;
     int64_t my_rel_locn_1, my_rel_locn_a, my_rel_locn_b;
-    std::uint32_t my_rel_locn_2;
+    std::uint64_t my_rel_locn_2;
     for (std::uint32_t i = index_start; i <= index_end; i++) {
         my_rel_posn = (tap->caft_com_ds->bwd_pairing_info)[i].pe_rel_posn;
         if (my_rel_posn < 253) {
@@ -581,24 +581,31 @@ void *compactReads4Thread(void *arg) {
 #if !NDEBUG
         assert ((my_rel_locn_1 >= 0) && (my_rel_locn_1 < (4294967296*4)));
 #endif
-        my_rel_locn_2 = (std::uint32_t) my_rel_locn_1;
-        if (my_rel_locn_2 < 253) {
+        my_rel_locn_2 = (std::uint64_t) my_rel_locn_1;
+        if (my_rel_locn_2 < 252) {
             (tap->caft_pe_rel_locns).push_back((std::uint8_t) my_rel_locn_2);
         } else if (my_rel_locn_2 < 65536) {
-            (tap->caft_pe_rel_locns).push_back((std::uint8_t) 253);
-            (tap->caft_pe_rel_locns).push_back((std::uint8_t) ((my_rel_locn_2      ) & 0x000000ff));
-            (tap->caft_pe_rel_locns).push_back((std::uint8_t) ((my_rel_locn_2 >> 8 ) & 0x000000ff));
+            (tap->caft_pe_rel_locns).push_back((std::uint8_t) 252);
+            (tap->caft_pe_rel_locns).push_back((std::uint8_t) ((my_rel_locn_2      ) & 0x00000000000000ff));
+            (tap->caft_pe_rel_locns).push_back((std::uint8_t) ((my_rel_locn_2 >> 8 ) & 0x00000000000000ff));
         } else if (my_rel_locn_2 < 16777216) {
+            (tap->caft_pe_rel_locns).push_back((std::uint8_t) 253);
+            (tap->caft_pe_rel_locns).push_back((std::uint8_t) ((my_rel_locn_2      ) & 0x00000000000000ff));
+            (tap->caft_pe_rel_locns).push_back((std::uint8_t) ((my_rel_locn_2 >> 8 ) & 0x00000000000000ff));
+            (tap->caft_pe_rel_locns).push_back((std::uint8_t) ((my_rel_locn_2 >> 16) & 0x00000000000000ff));
+        } else if (my_rel_locn_2 < 4294967296) {
             (tap->caft_pe_rel_locns).push_back((std::uint8_t) 254);
-            (tap->caft_pe_rel_locns).push_back((std::uint8_t) ((my_rel_locn_2      ) & 0x000000ff));
-            (tap->caft_pe_rel_locns).push_back((std::uint8_t) ((my_rel_locn_2 >> 8 ) & 0x000000ff));
-            (tap->caft_pe_rel_locns).push_back((std::uint8_t) ((my_rel_locn_2 >> 16) & 0x000000ff));
+            (tap->caft_pe_rel_locns).push_back((std::uint8_t) ((my_rel_locn_2      ) & 0x00000000000000ff));
+            (tap->caft_pe_rel_locns).push_back((std::uint8_t) ((my_rel_locn_2 >> 8 ) & 0x00000000000000ff));
+            (tap->caft_pe_rel_locns).push_back((std::uint8_t) ((my_rel_locn_2 >> 16) & 0x00000000000000ff));
+            (tap->caft_pe_rel_locns).push_back((std::uint8_t) ((my_rel_locn_2 >> 24) & 0x00000000000000ff));
         } else {
             (tap->caft_pe_rel_locns).push_back((std::uint8_t) 255);
-            (tap->caft_pe_rel_locns).push_back((std::uint8_t) ((my_rel_locn_2      ) & 0x000000ff));
-            (tap->caft_pe_rel_locns).push_back((std::uint8_t) ((my_rel_locn_2 >> 8 ) & 0x000000ff));
-            (tap->caft_pe_rel_locns).push_back((std::uint8_t) ((my_rel_locn_2 >> 16) & 0x000000ff));
-            (tap->caft_pe_rel_locns).push_back((std::uint8_t) ((my_rel_locn_2 >> 24) & 0x000000ff));
+            (tap->caft_pe_rel_locns).push_back((std::uint8_t) ((my_rel_locn_2      ) & 0x00000000000000ff));
+            (tap->caft_pe_rel_locns).push_back((std::uint8_t) ((my_rel_locn_2 >> 8 ) & 0x00000000000000ff));
+            (tap->caft_pe_rel_locns).push_back((std::uint8_t) ((my_rel_locn_2 >> 16) & 0x00000000000000ff));
+            (tap->caft_pe_rel_locns).push_back((std::uint8_t) ((my_rel_locn_2 >> 24) & 0x00000000000000ff));
+            (tap->caft_pe_rel_locns).push_back((std::uint8_t) ((my_rel_locn_2 >> 32) & 0x00000000000000ff));
         }
     }
     
@@ -922,9 +929,11 @@ int compress_reads(InputArgs& in_args, CompressionDataStructures& comDS) {
     
     startTime = realtime();
     perform_compaction(in_args, comDS);
-    //TODO: Perform compression
-    std::cout << "Compressed reads in " << realtime() - startTime << " s." << std::endl;
+    comDS.totalTime += (realtime() - startTime);
+    std::cout << "Compacted reads in " << realtime() - startTime << " s." << std::endl;
     std::cout << "CPU time : " << cputime() << " s." << std::endl;
+    
+    //TODO: Perform compression
     
 	return 0;
 }

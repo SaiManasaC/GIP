@@ -437,11 +437,13 @@ int build_index(InputArgs& in_args, CompressionDataStructures& comDS) {
     
     startTime = realtime();
     parse_reference_com(in_args, comDS);
+    comDS.totalTime += (realtime() - startTime);
     std::cout << "Loaded reference into memory in " << realtime() - startTime << " s." << std::endl;
     std::cout << "CPU time : " << cputime() << " s." << std::endl;
     
     startTime = realtime();
     construct_index(in_args, comDS);
+    comDS.totalTime += (realtime() - startTime);
     std::cout << "Built index in " << realtime() - startTime << " s." << std::endl;
     std::cout << "CPU time : " << cputime() << " s." << std::endl;
     

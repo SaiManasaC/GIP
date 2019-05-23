@@ -4,13 +4,16 @@
 __UTILS_CHAR_UINT8
 //__UTILS_HASH_VALUE
 
-int getSingleRead(Read * read, kseq_t * read_seq, std::uint32_t rdLength) {
+int getSingleRead(Read * read, kseq_t * read_seq, std::uint32_t& rdLength) {
 	int l = kseq_read(read_seq);
 	while (l == 0) {
 		l = kseq_read(read_seq);
 		//printf("!");
 	}
 	if (l > 0) {
+		if (rdLength == 0) {
+		    rdLength = (std::uint32_t) l;
+		}
 		if (l != ((int) rdLength)) {assert (0);}
 		read->length = l;
 		//memset(read->name, '\0', sizeof(char) * READ_NAME_LEN_MAX);
@@ -50,6 +53,10 @@ bool fetchReads(std::queue<Read>& fr_queue_1, std::queue<Read>& fr_queue_2, Alig
     for (std::uint32_t i = 0; i < READ_BLOCK_SIZE; i++) {
         fr_flag_1 = getSingleRead(&fr_read_1, fr_seq_1, fr_tap->aaft_in_args->rd1Length);
         fr_flag_2 = getSingleRead(&fr_read_2, fr_seq_2, fr_tap->aaft_in_args->rd2Length);
+        assert (fr_tap->aaft_in_args->rd1Length == fr_tap->aaft_in_args->rd2Length);
+        if (fr_tap->aaft_in_args->rdLength == 0) {
+            fr_tap->aaft_in_args->rdLength = fr_tap->aaft_in_args->rd1Length;
+        }
         if ((fr_flag_1 == -1) && (fr_flag_2 == -1)) {
             break;
         } else if ((fr_flag_1 == -1) || (fr_flag_2 == -1)) {
@@ -131,8 +138,8 @@ void *alignReads1Thread(void *arg) {
             } else {
                 unm_read_queue.push(tap->unm_read);
             }
-            if (one_read_queue.size() <= 512) {
-                if (one_read_queue.size() % 64 == 0) {
+            if (one_read_queue.size() <= 1024) {
+                if (one_read_queue.size() % 128 == 0) {
                     //Try lock
                     if (!pthread_mutex_trylock(my_mutex)) {
                         //Fetch reads and populate results
@@ -370,6 +377,7 @@ int align_reads(InputArgs& in_args, CompressionDataStructures& comDS) {
     
     startTime = realtime();
     perform_alignment(in_args, comDS);
+    comDS.totalTime += (realtime() - startTime);
     std::cout << "Aligned reads in " << realtime() - startTime << " s." << std::endl;
     std::cout << "CPU time : " << cputime() << " s." << std::endl;
     

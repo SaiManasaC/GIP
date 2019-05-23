@@ -14,7 +14,7 @@ int parse_args(int argc, char* argv[], InputArgs& in_args){
   const char* tc_arg = "thread_count";
   //const char* l1_arg = "rd1_length";
   //const char* l2_arg = "rd2_length";
-  const char* rl_arg = "rd_length";
+  //const char* rl_arg = "rd_length";
 
   cmd.setIntroductoryDescription("Reference-based Compression and Decompression");
   cmd.addErrorCode(0, "Success");
@@ -54,10 +54,10 @@ int parse_args(int argc, char* argv[], InputArgs& in_args){
   cmd.defineOption(l2_arg, "Read-2 length",
                    ArgvParser::OptionRequiresValue);
   //cmd.defineOptionAlternative(l2_arg, "");
-*/
   cmd.defineOption(rl_arg, "Read length",
                    ArgvParser::OptionRequiresValue);
   //cmd.defineOptionAlternative(rl_arg, "");
+*/
 
   int result = cmd.parse(argc, argv);
 
@@ -123,7 +123,6 @@ int parse_args(int argc, char* argv[], InputArgs& in_args){
       std::cerr << "Required option missing: " << l2_arg << std::endl;
       return 1;
   }
-*/
   if(cmd.foundOption(rl_arg)) {
       in_args.rdLength  = (std::uint32_t) std::stoi(cmd.optionValue(rl_arg));
       in_args.rd1Length = in_args.rdLength;
@@ -132,6 +131,7 @@ int parse_args(int argc, char* argv[], InputArgs& in_args){
       std::cerr << "Required option missing: " << rl_arg << std::endl;
       return 1;
   }
+*/
 
 
   std::cerr << "-----------------------------------------------------" << std::endl;
@@ -143,7 +143,7 @@ int parse_args(int argc, char* argv[], InputArgs& in_args){
   std::cerr << "Thread Count       : " << in_args.threadCount << std::endl;
   //std::cerr << "Rd1 Length         : " << in_args.rd1Length   << std::endl;
   //std::cerr << "Rd2 Length         : " << in_args.rd2Length   << std::endl;
-  std::cerr << "Rd Length          : " << in_args.rdLength   << std::endl;
+  //std::cerr << "Rd Length          : " << in_args.rdLength   << std::endl;
   std::cerr << "-----------------------------------------------------" << std::endl;
 
   return 0;
@@ -163,11 +163,11 @@ int refcom_compression(InputArgs& in_args, CompressionDataStructures& comDS) {
         std::cerr << "Rd2 length must be between 1 and 158" << std::endl;
         return 1;
     }
-*/
     if ((in_args.rdLength < 1 ) || (in_args.rdLength > 158)) {
         std::cerr << "Rd length must be between 1 and 158" << std::endl;
         return 1;
     }
+*/
     
     build_index(in_args, comDS);
     
@@ -175,6 +175,7 @@ int refcom_compression(InputArgs& in_args, CompressionDataStructures& comDS) {
     
     compress_reads(in_args, comDS);
     
+    std::cout << "Total time for compression is " << comDS.totalTime << " s." << std::endl;
     return 0;
 }
 
@@ -193,7 +194,7 @@ int main(int argc, char *argv[]) {
     
     omp_set_num_threads(cargs.threadCount);
     
-    CompressionDataStructures comDS;
+    CompressionDataStructures comDS; comDS.totalTime = 0.0;
     DecompressionDataStructures decomDS;
     
     if (!cargs.operation.compare("compression")) {

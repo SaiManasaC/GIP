@@ -25,7 +25,7 @@
 #define MERGE_CUT_OFF 2000
 //Also, see strict_differences and candis_distance
 #define EDIT_DISTANCE 7
-#define READ_BLOCK_SIZE 2000
+#define READ_BLOCK_SIZE 4000
 #define READ_LEN_MAX 160
 #define READ_LEN_U32 15
 
@@ -135,6 +135,7 @@ struct CompressionDataStructures{
     std::vector<MappedRead> bwd_mapped_reads;
     std::vector<PairingInfoFwd> fwd_pairing_info;
     std::vector<PairingInfoBwd> bwd_pairing_info;
+    double totalTime;
     
     //std::vector<std::uint32_t> tmp_lookup_table;
     //std::vector<std::uint32_t> tmp_occurrence_table;
