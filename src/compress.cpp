@@ -796,7 +796,7 @@ int perform_compaction(InputArgs& in_args, CompressionDataStructures& comDS) {
     });
     std::cout << "After mapped fwd sort" << std::endl;
     
-    double startTime = realtime();
+    //double startTime = realtime();
     std::cout << "Before mapped bwd sort" << std::endl;
     //TODO[LATER] : Use differences count during sorting
     pss::parallel_stable_sort(comDS.bwd_mapped_reads.begin(), comDS.bwd_mapped_reads.end(), 
@@ -805,7 +805,7 @@ int perform_compaction(InputArgs& in_args, CompressionDataStructures& comDS) {
         ((x.location == y.location) && (x.id < y.id));
     });
     std::cout << "After mapped bwd sort" << std::endl;
-    std::cout << "Sorted bwd reads in " << realtime() - startTime << " s." << std::endl;
+    //std::cout << "Sorted bwd reads in " << realtime() - startTime << " s." << std::endl;
     
     finished_thread_num = 0; err = 0;
     for (std::uint32_t i = 0; i < in_args.threadCount; i++) {
@@ -878,7 +878,9 @@ int perform_compaction(InputArgs& in_args, CompressionDataStructures& comDS) {
     for (std::uint32_t i = 0; i < in_args.threadCount; i++) {
         thread_args_array[i].caft_pe_rel_locn_mean = pe_rel_locn_mean;
     }
+#if !NDEBUG
     std::cout << "pe_rel_locn_mean : " << thread_args_array[0].caft_pe_rel_locn_mean << std::endl;
+#endif
     
     finished_thread_num = 0; err = 0;
     for (std::uint32_t i = 0; i < in_args.threadCount; i++) {
@@ -908,7 +910,9 @@ int perform_compaction(InputArgs& in_args, CompressionDataStructures& comDS) {
     //TODO: Write out meta-data file
     
     fclose(cpct_file_fp);
+#if !NDEBUG
     display_compression_stats(in_args, &pc_cs);
+#endif
 	
 	return 0;
 }

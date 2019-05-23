@@ -136,6 +136,9 @@ struct CompressionDataStructures{
     std::vector<PairingInfoFwd> fwd_pairing_info;
     std::vector<PairingInfoBwd> bwd_pairing_info;
     
+    //std::vector<std::uint32_t> tmp_lookup_table;
+    //std::vector<std::uint32_t> tmp_occurrence_table;
+    
     CompressionDataStructures(){
         ref_length = 0;
         ref_bases = NULL;

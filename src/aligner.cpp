@@ -345,7 +345,9 @@ int perform_alignment(InputArgs& in_args, CompressionDataStructures& comDS) {
     }
     assert (finished_thread_num == in_args.threadCount);
     
+#if !NDEBUG
     display_alignment_stats(in_args, &pa_as);
+#endif
     
     if (pthread_mutex_destroy(&alignment_mutex)) {assert (0);}
 	kseq_destroy(read_seq1);

@@ -762,8 +762,8 @@ bool NJ_CPUVBM (VerifyArgsForThread * vaftp) {
         //read length is not accounted for below
         if (r1_fwd && (!r2_fwd)) {
             compact_mapped_read(read1->bases, read1->length, m_read_fwd->read, best_r1_fwd_err);
-#if !NDEBUG
             if (best_r1_fwd_err) {
+#if !NDEBUG
                 if (diff_r1_fwd_loc < (read1->length - 1)) {
                     vaftp->asp->as_less_than_length_count[threadID] += 1;
                 } else if (diff_r1_fwd_loc == (read1->length - 1)) {

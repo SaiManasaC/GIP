@@ -155,6 +155,7 @@ void *constructIndex2Thread(void *arg) {
         i_prev = i_curr;
     }
     
+    i_curr -= 1;
     last_hash_values[tap->iaft_thread_id] = tmpOccurrenceTable[i_curr].hashValue;
     last_hash_counts[tap->iaft_thread_id] = curr_lt_count;
     
@@ -190,10 +191,10 @@ void *constructIndex2Thread(void *arg) {
     if ((tap->iaft_com_ds->lookup_table.size() - 1) < index_end) {
         index_end = tap->iaft_com_ds->lookup_table.size() - 1;
     }
-    tap->iaft_lt_sum = 0;
+    //tap->iaft_lt_sum = 0;
     std::uint32_t sumVar = 0;
     for (std::uint32_t i = index_start; i <= index_end; i++) {
-        tap->iaft_lt_sum += tap->iaft_com_ds->lookup_table[i];
+        //tap->iaft_lt_sum += tap->iaft_com_ds->lookup_table[i];
         sumVar += tap->iaft_com_ds->lookup_table[i];
         tap->iaft_com_ds->lookup_table[i] = sumVar;
     }
@@ -216,6 +217,7 @@ void *constructIndex2Thread(void *arg) {
     return NULL;
 }
 
+/*
 void *constructIndex3Thread(void *arg) {
     struct IndexArgsForThread * tap;
     tap = (struct IndexArgsForThread *) arg;
@@ -227,7 +229,7 @@ void *constructIndex3Thread(void *arg) {
     }
     //std::cout << tap->iaft_thread_id << " : " << index_start << " : " << index_end << std::endl;
     for (std::uint32_t i = index_start; i <= index_end; i++) {
-        tap->iaft_com_ds->lookup_table[i] = 0;
+        tap->iaft_com_ds->tmp_lookup_table[i] = 0;
     }
     
     pthread_barrier_wait(tap->iaft_barrier);
@@ -238,12 +240,17 @@ void *constructIndex3Thread(void *arg) {
     if ((tmpOccurrenceTable.size() - 1) < index_end) {
         index_end = tmpOccurrenceTable.size() - 1;
     }
+    last_hash_counts[tap->iaft_thread_id] = 0;
     for (std::uint32_t i = index_start; i <= index_end; i++) {
-        tap->iaft_com_ds->occurrence_table[i] = tmpOccurrenceTable[i].location;
+        tap->iaft_com_ds->tmp_occurrence_table[i] = tmpOccurrenceTable[i].location;
+        if (tap->iaft_com_ds->tmp_occurrence_table[i] != tap->iaft_com_ds->occurrence_table[i]) {
+            last_hash_counts[tap->iaft_thread_id] += 1;
+        }
     }
     
     return NULL;
 }
+*/
 
 int construct_index(InputArgs& in_args, CompressionDataStructures& comDS) {
     std::uint32_t hash_table_size = comDS.ref_length - KMER_LENGTH + 1;
@@ -254,8 +261,15 @@ int construct_index(InputArgs& in_args, CompressionDataStructures& comDS) {
     assert (comDS.lookup_table.size() == ((std::size_t) (max_hash_value+2)));
     assert (comDS.occurrence_table.size() == hash_table_size);
     
+    //comDS.tmp_lookup_table.resize(max_hash_value+2);
+    //comDS.tmp_occurrence_table.resize(hash_table_size);
+    //assert (comDS.tmp_lookup_table.size() == ((std::size_t) (max_hash_value+2)));
+    //assert (comDS.tmp_occurrence_table.size() == hash_table_size);
+    
+#if !NDEBUG
 	std::cout << "lookup_table size is     : " << comDS.lookup_table.size() << std::endl;
 	std::cout << "occurrence_table size is : " << comDS.occurrence_table.size() << std::endl;
+#endif
     
     tmpOccurrenceTable.resize(hash_table_size);
     assert (tmpOccurrenceTable.size() == hash_table_size);
@@ -317,7 +331,6 @@ int construct_index(InputArgs& in_args, CompressionDataStructures& comDS) {
     //std::cout << "tmpOccurrenceTable.back().hashValue  : " << tmpOccurrenceTable.back().hashValue << std::endl;
     //std::cout << "tmpOccurrenceTable.back().location   : " << tmpOccurrenceTable.back().location << std::endl;
     
-/*
     finished_thread_num = 0;
     err = 0;
     for (std::uint32_t i = 0; i < in_args.threadCount; i++) {
@@ -339,8 +352,8 @@ int construct_index(InputArgs& in_args, CompressionDataStructures& comDS) {
         assert (0);
     }
     assert (finished_thread_num == in_args.threadCount);
-*/
     
+/*
     finished_thread_num = 0;
     err = 0;
     for (std::uint32_t i = 0; i < in_args.threadCount; i++) {
@@ -367,25 +380,37 @@ int construct_index(InputArgs& in_args, CompressionDataStructures& comDS) {
     for (std::uint32_t i = 0; i < tmpOccurrenceTable.size(); i++) {
         currentHashVal = tmpOccurrenceTable[i].hashValue + 1;
         assert (currentHashVal <= (max_hash_value + 1));
-        (comDS.lookup_table[currentHashVal])++;
+        (comDS.tmp_lookup_table[currentHashVal])++;
     }
     
     std::uint32_t my_sum = 0;
     for (int i = 0; i <= (max_hash_value + 1); i++) {
-        my_sum += comDS.lookup_table[i];
-        comDS.lookup_table[i] = my_sum;
+        my_sum += comDS.tmp_lookup_table[i];
+        comDS.tmp_lookup_table[i] = my_sum;
     }
+    
+    std::uint32_t my_mismatches = 0;
+    for (int i = 0; i <= (max_hash_value + 1); i++) {
+        if (comDS.tmp_lookup_table[i] != comDS.lookup_table[i]) {
+            my_mismatches++;
+            std::cout << "mismatch at               : " << i << std::endl;
+            std::cout << "comDS.tmp_lookup_table[i] : " << comDS.tmp_lookup_table[i] << std::endl;
+            std::cout << "comDS.lookup_table[i]     : " << comDS.lookup_table[i] << std::endl;
+        }
+    }
+    std::cout << "my_mismatches : " << my_mismatches << std::endl;
+*/
     
     std::vector<HashLocationPair>().swap(tmpOccurrenceTable); //Free memory
     std::vector<int>().swap(last_hash_values); //Free memory
     std::vector<std::uint32_t>().swap(last_hash_counts); //Free memory
     
-    std::uint32_t total_lt_sum = 0;
-    for (std::uint32_t i = 0; i < in_args.threadCount; i++) {
-        total_lt_sum += thread_args_array[i].iaft_lt_sum;
-        //std::cout << "i : " << i << ", " << thread_args_array[i].iaft_lt_sum << std::endl;
-    }
-    std::cout << "total_lt_sum : " << total_lt_sum << std::endl;
+    //std::uint32_t total_lt_sum = 0;
+    //for (std::uint32_t i = 0; i < in_args.threadCount; i++) {
+    //    total_lt_sum += thread_args_array[i].iaft_lt_sum;
+    //    //std::cout << "i : " << i << ", " << thread_args_array[i].iaft_lt_sum << std::endl;
+    //}
+    //std::cout << "total_lt_sum : " << total_lt_sum << std::endl;
     
     //std::cout << "Before inclusive_scan" << std::endl;
     //std::inclusive_scan(std::execution::par, comDS.lookup_table.begin(), comDS.lookup_table.end(), comDS.lookup_table.begin());
@@ -393,10 +418,16 @@ int construct_index(InputArgs& in_args, CompressionDataStructures& comDS) {
     
     //std::cout << "lookup_table.front() : " << comDS.lookup_table.front() << std::endl;
     //std::cout << "lookup_table.back()  : " << comDS.lookup_table.back() << std::endl;
+    //std::cout << "lookup_table[ 0] : " << comDS.tmp_lookup_table[0] << std::endl;
+    //std::cout << "lookup_table[ 1] : " << comDS.tmp_lookup_table[1] << std::endl;
+    //std::cout << "lookup_table[-2] : " << comDS.tmp_lookup_table[max_hash_value] << std::endl;
+    //std::cout << "lookup_table[-1] : " << comDS.tmp_lookup_table[max_hash_value+1] << std::endl;
+#if !NDEBUG
     std::cout << "lookup_table[ 0] : " << comDS.lookup_table[0] << std::endl;
     std::cout << "lookup_table[ 1] : " << comDS.lookup_table[1] << std::endl;
     std::cout << "lookup_table[-2] : " << comDS.lookup_table[max_hash_value] << std::endl;
     std::cout << "lookup_table[-1] : " << comDS.lookup_table[max_hash_value+1] << std::endl;
+#endif
     
     return 0;
 }
