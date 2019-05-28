@@ -1,0 +1,6 @@
+REFCOM
+**/objs
+*.o
+libbsc.a
+bsc
+

@@ -49,6 +49,22 @@
         }\
     }
 
+#define __UTILS_UINT8_CHAR 	\
+    static inline char Uint8Tochar(std::uint8_t b) {\
+        switch (b) {\
+            case 0:\
+                     return 'A';\
+            case 1:\
+                     return 'C';\
+            case 2:\
+                     return 'G';\
+            case 3:\
+                     return 'T';\
+            default:\
+                     return 'N';\
+        }\
+    }
+
 #define __UTILS_HASH_VALUE 	 \
 static inline int hashValue(const std::uint8_t *seq, int windowSize) {\
 	int i = 0;\
@@ -90,6 +106,14 @@ struct MappedRead{
     char tmp_cigar[16];
 };
 
+// Can handle reads of length up to 158
+// 158 bases x 3 bits/base + 6 spare bits
+struct DecomBwdRead{
+    std::uint32_t read[READ_LEN_U32];
+    std::uint32_t pe_location;
+    std::uint32_t pe_rel_posn;
+};
+
 struct PairingInfoFwd {
     std::uint32_t id;
     std::uint32_t my_rel_posn;
@@ -110,11 +134,13 @@ struct InputArgs{
     std::string comFileName;
 
     //Need below only for compression
-    std::uint32_t threadCount;
+    std::uint32_t threadCount; //Size is recorded
+    
     std::uint32_t rd1Length;
     std::uint32_t rd2Length;
-    std::uint32_t rdLength;
+    std::uint32_t rdLength; //Size is recorded
     //std::uint32_t kmerLength;
+    std::string bscExecutable;
 
     InputArgs(){
         threadCount = 2;
@@ -136,6 +162,7 @@ struct CompressionDataStructures{
     std::vector<PairingInfoFwd> fwd_pairing_info;
     std::vector<PairingInfoBwd> bwd_pairing_info;
     double totalTime;
+    std::size_t totalBytes;
     
     //std::vector<std::uint32_t> tmp_lookup_table;
     //std::vector<std::uint32_t> tmp_occurrence_table;
@@ -143,16 +170,39 @@ struct CompressionDataStructures{
     CompressionDataStructures(){
         ref_length = 0;
         ref_bases = NULL;
+        totalTime = 0.0;
+        totalBytes = 0;
     }
 };
 
 struct DecompressionDataStructures{
     std::uint32_t ref_length; //Concatenated reference length excluding Ns
-    std::uint8_t * ref_bases;
+    char * ref_bases;
+    std::vector<DecomBwdRead> bwd_reads;
+    FILE ** ip_fp;
+    FILE ** o1_fp;
+    FILE ** o2_fp;
+    std::size_t r1_count;
+    std::size_t r2_count;
+    std::size_t mapped_count;
+    int64_t pe_rel_locn_mean;
+    double totalTime;
+    double fileIOTime;
+    std::size_t totalBytes;
     
     DecompressionDataStructures(){
         ref_length = 0;
         ref_bases = NULL;
+        ip_fp = NULL;
+        o1_fp = NULL;
+        o2_fp = NULL;
+        r1_count = 0;
+        r2_count = 0;
+        mapped_count = 0;
+        pe_rel_locn_mean = 0;
+        totalTime = 0.0;
+        fileIOTime = 0.0;
+        totalBytes = 0;
     }
 };
 

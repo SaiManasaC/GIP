@@ -6,6 +6,7 @@
 #include "buildindex.hpp"
 #include "aligner.hpp"
 #include "compress.hpp"
+#include "decompress.hpp"
 
 int parse_args(int, char**, InputArgs&);
 int refcom_compression(InputArgs&, CompressionDataStructures&);

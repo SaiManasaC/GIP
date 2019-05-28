@@ -1,4 +1,4 @@
-cpp_source=compress.cpp verifier.cpp aligner.cpp utils.cpp buildindex.cpp refcom.cpp
+cpp_source=decompress.cpp compress.cpp verifier.cpp aligner.cpp utils.cpp buildindex.cpp refcom.cpp
 src_dir=src
 objs_dir=objs
 objs+= $(patsubst %.cpp, $(objs_dir)/%.o, $(cpp_source))

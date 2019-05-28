@@ -42,7 +42,7 @@ int parse_args(int argc, char* argv[], InputArgs& in_args){
                    ArgvParser::OptionRequiresValue | ArgvParser::OptionRequired);
   //cmd.defineOptionAlternative(f3_arg, "");
 
-  cmd.defineOption(tc_arg, "Thread count",
+  cmd.defineOption(tc_arg, "Thread count. Applies only for compression",
                    ArgvParser::OptionRequiresValue);
   //cmd.defineOptionAlternative(tc_arg, "");
 
@@ -105,8 +105,10 @@ int parse_args(int argc, char* argv[], InputArgs& in_args){
   if(cmd.foundOption(tc_arg)) {
       in_args.threadCount = (std::uint32_t) std::stoi(cmd.optionValue(tc_arg));
   } else {
-      std::cerr << "Required option missing: " << tc_arg << std::endl;
-      return 1;
+      if (!in_args.operation.compare("compression")) {
+        std::cerr << "Required option missing: " << tc_arg << std::endl;
+        return 1;
+      }
   }
 
 /*
@@ -140,7 +142,9 @@ int parse_args(int argc, char* argv[], InputArgs& in_args){
   std::cerr << "Rd1 File Name      : " << in_args.rd1FileName << std::endl;
   std::cerr << "Rd2 File Name      : " << in_args.rd2FileName << std::endl;
   std::cerr << "Com File Name      : " << in_args.comFileName << std::endl;
-  std::cerr << "Thread Count       : " << in_args.threadCount << std::endl;
+  if (!in_args.operation.compare("compression")) {
+    std::cerr << "Thread Count       : " << in_args.threadCount << std::endl;
+  }
   //std::cerr << "Rd1 Length         : " << in_args.rd1Length   << std::endl;
   //std::cerr << "Rd2 Length         : " << in_args.rd2Length   << std::endl;
   //std::cerr << "Rd Length          : " << in_args.rdLength   << std::endl;
@@ -180,7 +184,11 @@ int refcom_compression(InputArgs& in_args, CompressionDataStructures& comDS) {
 }
 
 int refcom_decompression(InputArgs& in_args, DecompressionDataStructures& decomDS) {
+    decompress_reads(in_args, decomDS);
     
+    std::cout << "Total time for decompression is " << decomDS.totalTime << " s." << std::endl;
+    std::cout << "Total time for decom-fileIO is  " << decomDS.fileIOTime << " s." << std::endl;
+    std::cout << "Total time without fileIO is    " << decomDS.totalTime - decomDS.fileIOTime << " s." << std::endl;
     return 0;
 }
 
@@ -192,12 +200,15 @@ int main(int argc, char *argv[]) {
     if(parse_args(argc, argv, cargs))
         return 1;
     
-    omp_set_num_threads(cargs.threadCount);
+    cargs.bscExecutable = argv[0];
+    cargs.bscExecutable.erase(cargs.bscExecutable.end() - 6, cargs.bscExecutable.end());
+    cargs.bscExecutable.append("libbsc/bsc");
     
-    CompressionDataStructures comDS; comDS.totalTime = 0.0;
+    CompressionDataStructures comDS;
     DecompressionDataStructures decomDS;
     
     if (!cargs.operation.compare("compression")) {
+        omp_set_num_threads(cargs.threadCount);
         if (refcom_compression(cargs, comDS))
             return 1;
     } else if (!cargs.operation.compare("decompression")) {

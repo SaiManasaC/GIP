@@ -53,8 +53,8 @@ bool fetchReads(std::queue<Read>& fr_queue_1, std::queue<Read>& fr_queue_2, Alig
     for (std::uint32_t i = 0; i < READ_BLOCK_SIZE; i++) {
         fr_flag_1 = getSingleRead(&fr_read_1, fr_seq_1, fr_tap->aaft_in_args->rd1Length);
         fr_flag_2 = getSingleRead(&fr_read_2, fr_seq_2, fr_tap->aaft_in_args->rd2Length);
-        assert (fr_tap->aaft_in_args->rd1Length == fr_tap->aaft_in_args->rd2Length);
         if (fr_tap->aaft_in_args->rdLength == 0) {
+            assert (fr_tap->aaft_in_args->rd1Length == fr_tap->aaft_in_args->rd2Length);
             fr_tap->aaft_in_args->rdLength = fr_tap->aaft_in_args->rd1Length;
         }
         if ((fr_flag_1 == -1) && (fr_flag_2 == -1)) {
