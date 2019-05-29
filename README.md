@@ -24,12 +24,12 @@ make
 Inside refcom directory,
 
 ```sh
-./REFCOM --operation compression          \
---ref\_file\_name <REFERENCE\_FILE>       \
---rd1\_file\_name <INPUT\_FASTQ\_FILE\_1> \
---rd2\_file\_name <INPUT\_FASTQ\_FILE\_2> \
---com\_file\_name <COMPRESSION\_OUTPUT>   \
---thread\_count <THREAD\_COUNT>
+./REFCOM --operation compression     \
+--ref_file_name <REFERENCE_FILE>     \
+--rd1_file_name <INPUT_FASTQ_FILE_1> \
+--rd2_file_name <INPUT_FASTQ_FILE_2> \
+--com_file_name <COMPRESSION_OUTPUT> \
+--thread_count <THREAD_COUNT>
 ```
 
 ### Decompression 
@@ -37,13 +37,13 @@ Inside refcom directory,
 Inside refcom directory,
 
 ```sh
-./REFCOM --operation decompression         \
---ref\_file\_name <REFERENCE\_FILE>        \
---com\_file\_name <COMPRESSION\_OUTPUT>    \
---rd1\_file\_name <OUTPUT\_FASTQ\_FILE\_1> \
---rd2\_file\_name <OUTPUT\_FASTQ\_FILE\_2>
+./REFCOM --operation decompression    \
+--ref_file_name <REFERENCE_FILE>      \
+--com_file_name <COMPRESSION_OUTPUT>  \
+--rd1_file_name <OUTPUT_FASTQ_FILE_1> \
+--rd2_file_name <OUTPUT_FASTQ_FILE_2>
 ```
 
-> <REFERENCE\_FILE\> and <COMPRESSION\_OUTPUT\> are the same for compression and decompression
+> <REFERENCE_FILE\> and <COMPRESSION_OUTPUT\> are the same for compression and decompression
 
 > Decompression uses the same number of threads as compression
