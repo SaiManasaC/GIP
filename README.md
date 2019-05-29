@@ -44,6 +44,6 @@ Inside refcom directory,
 --rd2_file_name <OUTPUT_FASTQ_FILE_2>
 ```
 
-> <REFERENCE_FILE\> and <COMPRESSION_OUTPUT\> are the same for compression and decompression
+> <REFERENCE_FILE\> and <COMPRESSION_OUTPUT\> are the same for both compression and decompression
 
 > Decompression uses the same number of threads as compression
