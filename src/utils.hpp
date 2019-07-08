@@ -179,12 +179,17 @@ struct DecompressionDataStructures{
     std::uint32_t ref_length; //Concatenated reference length excluding Ns
     char * ref_bases;
     std::vector<DecomBwdRead> bwd_reads;
+    std::vector<char> bwd_print;
+    std::vector<std::uint8_t> unm_bytes;
+    std::vector<char> unm_fwd_reads;
+    std::vector<char> unm_bwd_reads;
     FILE ** ip_fp;
     FILE ** o1_fp;
     FILE ** o2_fp;
     std::size_t r1_count;
     std::size_t r2_count;
     std::size_t mapped_count;
+    std::size_t unmapped_count;
     int64_t pe_rel_locn_mean;
     double totalTime;
     double fileIOTime;

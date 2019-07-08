@@ -207,11 +207,13 @@ int process_unmapped_reads(InputArgs& in_args, DecompressionDataStructures& deco
 	    assert (0);
 	}
 	decomDS.totalBytes += num_read;
-	std::uint8_t * uread_bytes = (std::uint8_t *) 
-	malloc (my_size * (in_args.rdLength * 2) * sizeof(std::uint8_t));
-	assert (uread_bytes);
-	std::uint8_t * save_uread_bytes = uread_bytes;
-	num_read = fread(uread_bytes, 1, my_size * (in_args.rdLength * 2), *(decomDS.ip_fp));
+	//std::uint8_t * uread_bytes = (std::uint8_t *) 
+	//malloc (my_size * (in_args.rdLength * 2) * sizeof(std::uint8_t));
+	//assert (uread_bytes);
+	//std::uint8_t * save_uread_bytes = uread_bytes;
+	decomDS.unmapped_count = my_size;
+	decomDS.unm_bytes.resize(my_size * (in_args.rdLength * 2));
+	num_read = fread(decomDS.unm_bytes.data(), 1, my_size * (in_args.rdLength * 2), *(decomDS.ip_fp));
 	if (num_read) {
 	    std::cout << "Read " << num_read << " bytes from " << *(decomDS.ip_fp) << std::endl;
 	} else {
@@ -219,7 +221,10 @@ int process_unmapped_reads(InputArgs& in_args, DecompressionDataStructures& deco
 	    assert (0);
 	}
 	decomDS.totalBytes += num_read;
+	decomDS.unm_fwd_reads.resize(decomDS.unmapped_count * (in_args.rdLength + 3));
+	decomDS.unm_bwd_reads.resize(decomDS.unmapped_count * (in_args.rdLength + 3));
 	
+/*
 	std::uint8_t my_rc_bases[READ_LEN_MAX];
 	for (std::size_t i = 0; i < my_size; i++) {
 	    fprintf(*(decomDS.o1_fp), ">%lu\n", (decomDS.r1_count + 1));
@@ -246,10 +251,80 @@ int process_unmapped_reads(InputArgs& in_args, DecompressionDataStructures& deco
 	}
 	
 	free (save_uread_bytes);
+*/
     return 0;
 }
 
+int write_unm_data(InputArgs& in_args, DecompressionDataStructures& decomDS) {
+    std::vector<std::uint8_t>().swap(decomDS.unm_bytes); //Free memory
+    std::size_t num_write;
+    
+    num_write = fwrite(decomDS.unm_fwd_reads.data(), sizeof(char), decomDS.unm_fwd_reads.size(), *(decomDS.o1_fp));
+    if (num_write) {
+	    //std::cout << "Wrote " << num_write << " bytes to rd1 file" << std::endl;
+    } else {
+	    std::cerr << "Error writing to rd1 file" << std::endl;
+	    assert (0);
+    }
+    std::vector<char>().swap(decomDS.unm_fwd_reads); //Free memory
+    
+    num_write = fwrite(decomDS.unm_bwd_reads.data(), sizeof(char), decomDS.unm_bwd_reads.size(), *(decomDS.o2_fp));
+    if (num_write) {
+	    //std::cout << "Wrote " << num_write << " bytes to rd2 file" << std::endl;
+    } else {
+	    std::cerr << "Error writing to rd2 file" << std::endl;
+	    assert (0);
+    }
+    std::vector<char>().swap(decomDS.unm_bwd_reads); //Free memory
+    
+    return 0;
+}
+
+void *decompactReads0Thread(void *arg) {
+    struct DecompressArgsForThread * tap;
+    tap = (struct DecompressArgsForThread *) arg;
+    std::uint32_t indices_per_thread = ceil(((double) tap->daft_decom_ds->unmapped_count)/((double) tap->daft_in_args->threadCount));
+    std::uint32_t index_start = (tap->daft_thread_id) * indices_per_thread;
+    std::uint32_t index_end = ((tap->daft_thread_id+1) * indices_per_thread) - 1;
+    if ((tap->daft_decom_ds->unmapped_count - 1) < index_end) {
+        index_end = tap->daft_decom_ds->unmapped_count - 1;
+    }
+    //std::cout << tap->daft_thread_id << " : " << index_start << " : " << index_end << std::endl;
+    
+    std::size_t ip_idx = index_start * (tap->daft_in_args->rdLength * 2);
+    std::size_t o1_idx = index_start * (tap->daft_in_args->rdLength + 3);
+    std::size_t o2_idx = index_start * (tap->daft_in_args->rdLength + 3);
+    std::uint8_t my_rc_bases[READ_LEN_MAX];
+    for (std::uint32_t i = index_start; i <= index_end; i++) {
+        tap->daft_decom_ds->unm_fwd_reads.data()[o1_idx] = '>'; o1_idx += 1;
+        tap->daft_decom_ds->unm_fwd_reads.data()[o1_idx] = '\n'; o1_idx += 1;
+        tap->daft_decom_ds->unm_bwd_reads.data()[o2_idx] = '>'; o2_idx += 1;
+        tap->daft_decom_ds->unm_bwd_reads.data()[o2_idx] = '\n'; o2_idx += 1;
+	    for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; j++) {
+	        tap->daft_decom_ds->unm_fwd_reads.data()[o1_idx] = Uint8Tochar(tap->daft_decom_ds->unm_bytes.data()[ip_idx]);
+	        ip_idx += 1; o1_idx += 1;
+	    }
+	    for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; j++) {
+			if (tap->daft_decom_ds->unm_bytes.data()[ip_idx] != 4) {
+				my_rc_bases[tap->daft_in_args->rdLength - 1 - j] = 3 - tap->daft_decom_ds->unm_bytes.data()[ip_idx];
+			} else {
+				my_rc_bases[tap->daft_in_args->rdLength - 1 - j] = 4;
+			}
+	        ip_idx += 1;
+	    }
+	    for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; j++) {
+	        tap->daft_decom_ds->unm_bwd_reads.data()[o2_idx] = Uint8Tochar(my_rc_bases[j]);
+	        o2_idx += 1;
+	    }
+        tap->daft_decom_ds->unm_fwd_reads.data()[o1_idx] = '\n'; o1_idx += 1;
+        tap->daft_decom_ds->unm_bwd_reads.data()[o2_idx] = '\n'; o2_idx += 1;
+    }
+    
+    return NULL;
+}
+
 int write_bwd_data(InputArgs& in_args, DecompressionDataStructures& decomDS) {
+/*
 	std::uint8_t my_bases[READ_LEN_MAX], my_rc_bases[READ_LEN_MAX];
 	std::uint32_t ri, k;
 	std::uint8_t z, one_base;
@@ -290,14 +365,83 @@ int write_bwd_data(InputArgs& in_args, DecompressionDataStructures& decomDS) {
 	    fputc('\n', *(decomDS.o2_fp));
 	    decomDS.r2_count += 1;
 	}
+*/
 	
-	std::vector<DecomBwdRead>().swap(decomDS.bwd_reads);
+	std::vector<DecomBwdRead>().swap(decomDS.bwd_reads); //Free memory
+	
+    std::size_t num_write;
+    num_write = fwrite(decomDS.bwd_print.data(), sizeof(char), decomDS.bwd_print.size(), *(decomDS.o2_fp));
+    if (num_write) {
+	    //std::cout << "Wrote " << num_write << " bytes to rd2 file" << std::endl;
+    } else {
+	    std::cerr << "Error writing to rd2 file" << std::endl;
+	    assert (0);
+    }
+	std::vector<char>().swap(decomDS.bwd_print); //Free memory
     return 0;
 }
 
+void *decompactReads3Thread(void *arg) {
+    struct DecompressArgsForThread * tap;
+    tap = (struct DecompressArgsForThread *) arg;
+    std::uint32_t indices_per_thread = ceil(((double) tap->daft_decom_ds->mapped_count)/((double) tap->daft_in_args->threadCount));
+    std::uint32_t index_start = (tap->daft_thread_id) * indices_per_thread;
+    std::uint32_t index_end = ((tap->daft_thread_id+1) * indices_per_thread) - 1;
+    if ((tap->daft_decom_ds->mapped_count - 1) < index_end) {
+        index_end = tap->daft_decom_ds->mapped_count - 1;
+    }
+    //std::cout << tap->daft_thread_id << " : " << index_start << " : " << index_end << std::endl;
+    
+	std::uint8_t my_bases[READ_LEN_MAX], my_rc_bases[READ_LEN_MAX];
+	std::uint32_t ri, k;
+	std::uint8_t z, one_base;
+    std::size_t op_idx = index_start * (tap->daft_in_args->rdLength + 3);
+    for (std::uint32_t i = index_start; i <= index_end; i++) {
+        DecomBwdRead & u1 = tap->daft_decom_ds->bwd_reads[i];
+        for (ri = 0, k = 0; ri < tap->daft_in_args->rdLength; ri++) {
+            one_base = 0;
+            z = 1;
+            if (TestBit(u1.read, k)) {
+                one_base |= z;
+            }
+            k++;
+            z = (z << 1);
+            if (TestBit(u1.read, k)) {
+                one_base |= z;
+            }
+            k++;
+            z = (z << 1);
+            if (TestBit(u1.read, k)) {
+                one_base |= z;
+            }
+            k++;
+            //z = (z << 1); //Not necessary
+            my_bases[ri] = one_base;
+        }
+	    for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; j++) {
+			if (my_bases[j] != 4) {
+				my_rc_bases[tap->daft_in_args->rdLength - 1 - j] = 3 - my_bases[j];
+			} else {
+				my_rc_bases[tap->daft_in_args->rdLength - 1 - j] = 4;
+			}
+	    }
+        tap->daft_decom_ds->bwd_print.data()[op_idx] = '>'; op_idx += 1;
+        tap->daft_decom_ds->bwd_print.data()[op_idx] = '\n'; op_idx += 1;
+	    for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; j++) {
+	        tap->daft_decom_ds->bwd_print.data()[op_idx] = Uint8Tochar(my_rc_bases[j]);
+	        op_idx += 1;
+	    }
+        tap->daft_decom_ds->bwd_print.data()[op_idx] = '\n'; op_idx += 1;
+    }
+    
+    return NULL;
+}
+
 void write_fwd_data(DecompressArgsForThread * wfd_tap) {
+	std::size_t num_write;
 	FILE * wfd_fp = *(wfd_tap[0].daft_decom_ds->o1_fp);
     for (std::uint32_t i = 0; i < wfd_tap[0].daft_in_args->threadCount; i++) {
+        /*
         std::size_t j;
         for (j = 0; j < wfd_tap[i].daft_fwd_reads.size(); j++) {
             if (j % wfd_tap[i].daft_in_args->rdLength == 0) {
@@ -310,6 +454,14 @@ void write_fwd_data(DecompressArgsForThread * wfd_tap) {
             }
         }
         assert (j == wfd_tap[i].daft_fwd_reads.size());
+        */
+	    num_write = fwrite(wfd_tap[i].daft_fwd_reads.data(), sizeof(char), wfd_tap[i].daft_fwd_reads.size(), wfd_fp);
+	    if (num_write) {
+	        //std::cout << "Wrote " << num_write << " bytes to rd1 file" << std::endl;
+	    } else {
+	        std::cerr << "Error writing to rd1 file" << std::endl;
+	        assert (0);
+	    }
         std::vector<char>().swap(wfd_tap[i].daft_fwd_reads); //Free memory
     }
 }
@@ -535,12 +687,13 @@ void *decompactReads1Thread(void *arg) {
     }
     //std::cout << tap->daft_thread_id << " : " << index_start << " : " << index_end << std::endl;
     
-    tap->daft_fwd_reads.resize((index_end - index_start + 1) * tap->daft_in_args->rdLength);
+    tap->daft_fwd_reads.resize((index_end - index_start + 1) * (tap->daft_in_args->rdLength + 3));
     std::uint32_t loc_idx = 0, prev_locn = 0, curr_locn = 0;
     std::uint32_t dct_idx = 0, dpv_idx = 0;
     std::size_t fwd_idx = 0;
-    char my_bases_1[READ_LEN_MAX + EDIT_DISTANCE + 1]; //To account for indels
-    char my_bases_2[READ_LEN_MAX];
+    //char my_bases_1[READ_LEN_MAX + EDIT_DISTANCE + 1]; //To account for indels
+    //char my_bases_2[READ_LEN_MAX];
+    bool is_mod_unused;
     for (std::uint32_t i = index_start; i <= index_end; i++) {
         if (tap->daft_fwd_locns[loc_idx] < 253) {
             curr_locn = (std::uint32_t) tap->daft_fwd_locns[loc_idx];
@@ -572,33 +725,79 @@ void *decompactReads1Thread(void *arg) {
         }
         curr_locn += prev_locn;
 #if !NDEBUG
-        if (curr_locn > (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength)) {
-            curr_locn = tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength;
-        }
         //if (curr_locn > (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength)) {
+        //    curr_locn = tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength;
+        //}
+        //if (curr_locn > (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength + tap->daft_fwd_diff_counts[dct_idx])) {
         //    std::cerr << "tap->daft_thread_id : " << tap->daft_thread_id << std::endl;
         //    std::cerr << "prev_locn : " << prev_locn << std::endl;
         //    std::cerr << "curr_locn : " << curr_locn << std::endl;
         //    std::cerr << "i : " << i << std::endl;
+        //    std::cerr << "diff_count : " << ((std::uint32_t) tap->daft_fwd_diff_counts[dct_idx]) << std::endl;
         //}
         assert (curr_locn <= (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength));
 #endif
         
+        tap->daft_fwd_reads.data()[fwd_idx] = '>';
+        fwd_idx += 1;
+        tap->daft_fwd_reads.data()[fwd_idx] = '\n';
+        fwd_idx += 1;
         if (tap->daft_fwd_diff_counts[dct_idx]) {
-            std::memcpy(my_bases_1, tap->daft_decom_ds->ref_bases + curr_locn, tap->daft_in_args->rdLength + EDIT_DISTANCE);
-            std::uint32_t mb1_idx = 0, mb2_idx = 0;
-            for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; j++) {
-               my_bases_2[mb2_idx] = my_bases_1[mb1_idx];
-               mb1_idx += 1; mb2_idx += 1;
+            //std::memcpy(my_bases_1, tap->daft_decom_ds->ref_bases + curr_locn, tap->daft_in_args->rdLength + EDIT_DISTANCE);
+            //std::uint32_t mb1_idx = 0, mb2_idx = 0;
+            //for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; j++) {
+            //   my_bases_2[mb2_idx] = my_bases_1[mb1_idx];
+            //   mb1_idx += 1; mb2_idx += 1;
+            //}
+            //dpv_idx += tap->daft_fwd_diff_counts[dct_idx];
+            //std::memcpy(tap->daft_fwd_reads.data() + fwd_idx, my_bases_2, tap->daft_in_args->rdLength);
+            //fwd_idx += tap->daft_in_args->rdLength;
+            std::uint32_t ref_idx = 0, mod_idx = 0;
+            mod_idx += tap->daft_fwd_diff_posns[dpv_idx];
+            is_mod_unused = true;
+            tap->daft_fwd_diff_counts[dct_idx] -= 1;
+            for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; ) {
+                if (is_mod_unused && (ref_idx == mod_idx)) {
+                    if (tap->daft_fwd_diff_values[dpv_idx] < 4) {
+                        //Substitution
+                        if (tap->daft_fwd_diff_values[dpv_idx] < charToUint8(tap->daft_decom_ds->ref_bases[curr_locn + ref_idx])) {
+                            tap->daft_fwd_reads.data()[fwd_idx] = Uint8Tochar(tap->daft_fwd_diff_values[dpv_idx]);
+                        } else {
+                            tap->daft_fwd_reads.data()[fwd_idx] = Uint8Tochar(tap->daft_fwd_diff_values[dpv_idx] + 1);
+                        }
+                        fwd_idx += 1; j += 1;
+                        ref_idx += 1;
+                    } else if (tap->daft_fwd_diff_values[dpv_idx] < 9) {
+                        //Insertion
+                        tap->daft_fwd_reads.data()[fwd_idx] = Uint8Tochar(tap->daft_fwd_diff_values[dpv_idx] - 4);
+                        fwd_idx += 1; j += 1;
+                    } else {
+                        //Deletion
+                        ref_idx += 1;
+                    }
+                    dpv_idx += 1;
+                    is_mod_unused = false;
+                    if (tap->daft_fwd_diff_counts[dct_idx]) {
+                        mod_idx += tap->daft_fwd_diff_posns[dpv_idx];
+                        is_mod_unused = true;
+                        tap->daft_fwd_diff_counts[dct_idx] -= 1;
+                    }
+                } else {
+                    tap->daft_fwd_reads.data()[fwd_idx] = tap->daft_decom_ds->ref_bases[curr_locn + ref_idx];
+                    fwd_idx += 1; j += 1;
+                    ref_idx += 1;
+                }
             }
-            dpv_idx += tap->daft_fwd_diff_counts[dct_idx];
-            std::memcpy(tap->daft_fwd_reads.data() + fwd_idx, my_bases_2, tap->daft_in_args->rdLength);
-            fwd_idx += tap->daft_in_args->rdLength;
         } else {
             //No differences
             std::memcpy(tap->daft_fwd_reads.data() + fwd_idx, tap->daft_decom_ds->ref_bases + curr_locn, tap->daft_in_args->rdLength);
             fwd_idx += tap->daft_in_args->rdLength;
         }
+        tap->daft_fwd_reads.data()[fwd_idx] = '\n';
+        fwd_idx += 1;
+#if !NDEBUG
+        assert (tap->daft_fwd_diff_counts[dct_idx] == 0);
+#endif
         dct_idx += 1;
         
         prev_locn = curr_locn;
@@ -631,8 +830,9 @@ void *decompactReads2Thread(void *arg) {
     std::uint32_t dct_idx = 0, dpv_idx = 0;
     std::uint32_t pel_idx = 0, pep_idx = 0;
     std::uint32_t pe_posn; int64_t pe_locn_1; std::uint64_t pe_locn_2;
-    char my_bases_1[READ_LEN_MAX + EDIT_DISTANCE + 1]; //To account for indels
+    //char my_bases_1[READ_LEN_MAX + EDIT_DISTANCE + 1]; //To account for indels
     char my_bases_2[READ_LEN_MAX];
+    bool is_mod_unused;
     for (std::uint32_t i = index_start; i <= index_end; i++) {
         if (tap->daft_bwd_locns[loc_idx] < 253) {
             curr_locn = (std::uint32_t) tap->daft_bwd_locns[loc_idx];
@@ -664,31 +864,71 @@ void *decompactReads2Thread(void *arg) {
         }
         curr_locn += prev_locn;
 #if !NDEBUG
-        if (curr_locn > (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength)) {
-            curr_locn = tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength;
-        }
         //if (curr_locn > (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength)) {
+        //    curr_locn = tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength;
+        //}
+        //if (curr_locn > (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength + tap->daft_bwd_diff_counts[dct_idx])) {
         //    std::cerr << "tap->daft_thread_id : " << tap->daft_thread_id << std::endl;
         //    std::cerr << "prev_locn : " << prev_locn << std::endl;
         //    std::cerr << "curr_locn : " << curr_locn << std::endl;
         //    std::cerr << "i : " << i << std::endl;
+        //    std::cerr << "diff_count : " << ((std::uint32_t) tap->daft_bwd_diff_counts[dct_idx]) << std::endl;
         //}
         assert (curr_locn <= (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength));
 #endif
         
         if (tap->daft_bwd_diff_counts[dct_idx]) {
-            std::memcpy(my_bases_1, tap->daft_decom_ds->ref_bases + curr_locn, tap->daft_in_args->rdLength + EDIT_DISTANCE);
-            std::uint32_t mb1_idx = 0, mb2_idx = 0;
-            for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; j++) {
-               my_bases_2[mb2_idx] = my_bases_1[mb1_idx];
-               mb1_idx += 1; mb2_idx += 1;
+            //std::memcpy(my_bases_1, tap->daft_decom_ds->ref_bases + curr_locn, tap->daft_in_args->rdLength + EDIT_DISTANCE);
+            //std::uint32_t mb1_idx = 0, mb2_idx = 0;
+            //for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; j++) {
+            //   my_bases_2[mb2_idx] = my_bases_1[mb1_idx];
+            //   mb1_idx += 1; mb2_idx += 1;
+            //}
+            //dpv_idx += tap->daft_bwd_diff_counts[dct_idx];
+            std::uint32_t ref_idx = 0, mod_idx = 0;
+            mod_idx += tap->daft_bwd_diff_posns[dpv_idx];
+            is_mod_unused = true;
+            tap->daft_bwd_diff_counts[dct_idx] -= 1;
+            for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; ) {
+                if (is_mod_unused && (ref_idx == mod_idx)) {
+                    if (tap->daft_bwd_diff_values[dpv_idx] < 4) {
+                        //Substitution
+                        if (tap->daft_bwd_diff_values[dpv_idx] < charToUint8(tap->daft_decom_ds->ref_bases[curr_locn + ref_idx])) {
+                            my_bases_2[j] = Uint8Tochar(tap->daft_bwd_diff_values[dpv_idx]);
+                        } else {
+                            my_bases_2[j] = Uint8Tochar(tap->daft_bwd_diff_values[dpv_idx] + 1);
+                        }
+                        j += 1;
+                        ref_idx += 1;
+                    } else if (tap->daft_bwd_diff_values[dpv_idx] < 9) {
+                        //Insertion
+                        my_bases_2[j] = Uint8Tochar(tap->daft_bwd_diff_values[dpv_idx] - 4);
+                        j += 1;
+                    } else {
+                        //Deletion
+                        ref_idx += 1;
+                    }
+                    dpv_idx += 1;
+                    is_mod_unused = false;
+                    if (tap->daft_bwd_diff_counts[dct_idx]) {
+                        mod_idx += tap->daft_bwd_diff_posns[dpv_idx];
+                        is_mod_unused = true;
+                        tap->daft_bwd_diff_counts[dct_idx] -= 1;
+                    }
+                } else {
+                    my_bases_2[j] = tap->daft_decom_ds->ref_bases[curr_locn + ref_idx];
+                    j += 1;
+                    ref_idx += 1;
+                }
             }
-            dpv_idx += tap->daft_bwd_diff_counts[dct_idx];
             compact_bwd_read(my_bases_2, tap->daft_in_args->rdLength, tap->daft_decom_ds->bwd_reads[i].read);
         } else {
             //No differences
             compact_bwd_read(tap->daft_decom_ds->ref_bases + curr_locn, tap->daft_in_args->rdLength, tap->daft_decom_ds->bwd_reads[i].read);
         }
+#if !NDEBUG
+        assert (tap->daft_bwd_diff_counts[dct_idx] == 0);
+#endif
         dct_idx += 1;
         
         prev_locn = curr_locn;
@@ -868,6 +1108,27 @@ int perform_decompaction(InputArgs& in_args, DecompressionDataStructures& decomD
     
     startTime = realtime();
     process_unmapped_reads(in_args, decomDS);
+    finished_thread_num = 0; err = 0;
+    for (std::uint32_t i = 0; i < in_args.threadCount; i++) {
+        err += pthread_create(CPUTaskHandle + i, NULL, decompactReads0Thread, thread_args_array + i);
+    }
+    if (err == 0) {
+        std::cout << "Created threads for decompact-reads-0 successfully" << std::endl;
+    } else {
+        assert (0);
+    }
+    
+    for (std::uint32_t i = 0; i < in_args.threadCount; i++) {
+        err += pthread_join(CPUTaskHandle[i], NULL);
+        finished_thread_num++;
+    }
+    if (err == 0) {
+        std::cout << "Threads for decompact-reads-0 completed successfully" << std::endl;
+    } else {
+        assert (0);
+    }
+    assert (finished_thread_num == in_args.threadCount);
+    write_unm_data(in_args, decomDS);
     read_se_data(thread_args_array);
     decomDS.fileIOTime += (realtime() - startTime);
 	
@@ -936,6 +1197,27 @@ int perform_decompaction(InputArgs& in_args, DecompressionDataStructures& decomD
     });
     std::cout << "After bwd sort" << std::endl;
     startTime = realtime();
+    decomDS.bwd_print.resize(decomDS.mapped_count * (in_args.rdLength + 3));
+    finished_thread_num = 0; err = 0;
+    for (std::uint32_t i = 0; i < in_args.threadCount; i++) {
+        err += pthread_create(CPUTaskHandle + i, NULL, decompactReads3Thread, thread_args_array + i);
+    }
+    if (err == 0) {
+        std::cout << "Created threads for decompact-reads-3 successfully" << std::endl;
+    } else {
+        assert (0);
+    }
+    
+    for (std::uint32_t i = 0; i < in_args.threadCount; i++) {
+        err += pthread_join(CPUTaskHandle[i], NULL);
+        finished_thread_num++;
+    }
+    if (err == 0) {
+        std::cout << "Threads for decompact-reads-3 completed successfully" << std::endl;
+    } else {
+        assert (0);
+    }
+    assert (finished_thread_num == in_args.threadCount);
     write_bwd_data(in_args, decomDS);
     decomDS.fileIOTime += (realtime() - startTime);
     
@@ -945,8 +1227,8 @@ int perform_decompaction(InputArgs& in_args, DecompressionDataStructures& decomD
 #if !NDEBUG
     display_decompression_stats(in_args, &pd_ds);
 #endif
-	std::cout << "r1_count : " << decomDS.r1_count << std::endl;
-	std::cout << "r2_count : " << decomDS.r2_count << std::endl;
+	//std::cout << "r1_count : " << decomDS.r1_count << std::endl;
+	//std::cout << "r2_count : " << decomDS.r2_count << std::endl;
 	
 	return 0;
 }

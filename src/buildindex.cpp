@@ -30,6 +30,7 @@ int parse_reference_com(InputArgs& in_args, CompressionDataStructures& comDS) {
 	std::uint32_t scaffold_count  = 0;
 	std::uint32_t all_bases_count = 0;
 	std::uint32_t val_bases_count = 0;
+	std::uint32_t adj_bases_count = 0;
 	int l = kseq_read(ref_seq);
 	while (l == 0) {
 		l = kseq_read(ref_seq);
@@ -58,10 +59,13 @@ int parse_reference_com(InputArgs& in_args, CompressionDataStructures& comDS) {
         assert (0);
 	}
 	
-	comDS.ref_length = val_bases_count;
+	//comDS.ref_length = val_bases_count;
+	adj_bases_count = val_bases_count - READ_LEN_MAX;
+	comDS.ref_length = adj_bases_count;
 	std::cout << "Reference scaffold_count  : " << scaffold_count  << std::endl;
 	std::cout << "Reference all_bases_count : " << all_bases_count << std::endl;
 	std::cout << "Reference val_bases_count : " << val_bases_count << std::endl;
+	std::cout << "Reference adj_bases_count : " << adj_bases_count << std::endl;
     
     kseq_destroy(ref_seq);
     fclose(ref_file_fp);

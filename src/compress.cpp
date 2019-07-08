@@ -339,7 +339,7 @@ void *compactReads2Thread(void *arg) {
             (tap->csp->cs_cigar_resolved_count)[threadID] += 1;
             if (my_diffs) {
                 uncompact_mapped_read(r1.bases, m1->read, tap->caft_in_args->rdLength);
-                //r1.length = tap->caft_in_args->rdLength;
+                //r1.length = (int) tap->caft_in_args->rdLength;
                 CPUMDTag(my_ref_bases, r1.bases, m1->location, m1->tmp_cigar, diff_locs, diff_vals);
                 if (diff_locs[0] > my_diffs) {
                     (tap->csp->cs_diff_more_count)[threadID] += 1;
@@ -358,7 +358,7 @@ void *compactReads2Thread(void *arg) {
             }
         } else {
             uncompact_mapped_read(r1.bases, m1->read, tap->caft_in_args->rdLength);
-            r1.length = tap->caft_in_args->rdLength;
+            r1.length = (int) tap->caft_in_args->rdLength;
             CPUAlignKernel((my_ref_bases + m1->base_location), r1.bases, m1->diff_location, cigar, r1.length, my_diffs);
             CPUMDTag(my_ref_bases, r1.bases, m1->location, cigar, diff_locs, diff_vals);
                 if (diff_locs[0] > my_diffs) {
@@ -407,7 +407,7 @@ void *compactReads2Thread(void *arg) {
             (tap->csp->cs_cigar_resolved_count)[threadID] += 1;
             if (my_diffs) {
                 uncompact_mapped_read(r2.bases, m2->read, tap->caft_in_args->rdLength);
-                //r2.length = tap->caft_in_args->rdLength;
+                //r2.length = (int) tap->caft_in_args->rdLength;
                 CPUMDTag(my_ref_bases, r2.bases, m2->location, m2->tmp_cigar, diff_locs, diff_vals);
                 if (diff_locs[0] > my_diffs) {
                     (tap->csp->cs_diff_more_count)[threadID] += 1;
@@ -426,7 +426,7 @@ void *compactReads2Thread(void *arg) {
             }
         } else {
             uncompact_mapped_read(r2.bases, m2->read, tap->caft_in_args->rdLength);
-            r2.length = tap->caft_in_args->rdLength;
+            r2.length = (int) tap->caft_in_args->rdLength;
             CPUAlignKernel((my_ref_bases + m2->base_location), r2.bases, m2->diff_location, cigar, r2.length, my_diffs);
             CPUMDTag(my_ref_bases, r2.bases, m2->location, cigar, diff_locs, diff_vals);
                 if (diff_locs[0] > my_diffs) {
