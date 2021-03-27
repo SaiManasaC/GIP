@@ -13,21 +13,21 @@ __UTILS_UINT8_CHAR
 inline void compact_bwd_read (char * my_bases, std::uint32_t my_rl, std::uint32_t * my_compact_read) {
             std::uint32_t ri = 0, k = 0;
             for (; ri < my_rl; ri++) {
-                if (my_bases[ri] == 'A') {
+                if ((my_bases[ri] == 'A') || (my_bases[ri] == 'a')) {
                     k++;
                     k++;
                     k++;
-                } else if (my_bases[ri] == 'C') {
+                } else if ((my_bases[ri] == 'C') || (my_bases[ri] == 'c')) {
                     SetBit(my_compact_read, k);
                     k++;
                     k++;
                     k++;
-                } else if (my_bases[ri] == 'G') {
+                } else if ((my_bases[ri] == 'G') || (my_bases[ri] == 'g')) {
                     k++;
                     SetBit(my_compact_read, k);
                     k++;
                     k++;
-                } else if (my_bases[ri] == 'T') {
+                } else if ((my_bases[ri] == 'T') || (my_bases[ri] == 't')) {
                     SetBit(my_compact_read, k);
                     k++;
                     SetBit(my_compact_read, k);
