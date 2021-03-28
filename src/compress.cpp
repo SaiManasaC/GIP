@@ -824,6 +824,222 @@ void write_pe_data(FILE * wpd_fp, CompressArgsForThread * wpd_tap) {
     }
 }
 
+__UTILS_UINT8_CHAR
+void write_compact_unm_op(InputArgs& in_args, CompressionDataStructures& comDS) {
+	FILE * jnk_fp_1 = fopen("./rd_1.jnk.compact", "w");
+	if (jnk_fp_1 == NULL) {
+	    std::cerr << "Cannnot open file for writing : " << "./rd_1.jnk.align" << std::endl;
+	    assert (0);
+	}
+	FILE * jnk_fp_2 = fopen("./rd_2.jnk.compact", "w");
+	if (jnk_fp_2 == NULL) {
+	    std::cerr << "Cannnot open file for writing : " << "./rd_2.jnk.align" << std::endl;
+	    assert (0);
+	}
+    
+    int z, one_base, j;
+    std::uint32_t ri, k;
+    char read_1[READ_LEN_MAX], read_2[READ_LEN_MAX];
+    
+    for (std::size_t i = 0; i < comDS.unmapped_reads.size(); i++) {
+        UnmappedRead & u1 = comDS.unmapped_reads[i];
+        
+        j = 0;
+        for (ri = 0, k = 0; ri < in_args.rdLength; ri++) {
+            one_base = 0;
+            z = 1;
+            if (TestBit(u1.fwd_read, k)) {
+                one_base |= z;
+            }
+            k++;
+            z = (z << 1);
+            if (TestBit(u1.fwd_read, k)) {
+                one_base |= z;
+            }
+            k++;
+            z = (z << 1);
+            if (TestBit(u1.fwd_read, k)) {
+                one_base |= z;
+            }
+            k++;
+            //z = (z << 1); //Not necessary
+            read_1[j] = Uint8Tochar((uint8_t) one_base);
+            j++;
+        }
+        read_1[j] = '\0';
+        
+        j = (int) in_args.rdLength;
+        read_2[j] = '\0';
+        j--;
+        for (ri = 0, k = 0; ri < in_args.rdLength; ri++) {
+            one_base = 0;
+            z = 1;
+            if (TestBit(u1.bwd_read, k)) {
+                one_base |= z;
+            }
+            k++;
+            z = (z << 1);
+            if (TestBit(u1.bwd_read, k)) {
+                one_base |= z;
+            }
+            k++;
+            z = (z << 1);
+            if (TestBit(u1.bwd_read, k)) {
+                one_base |= z;
+            }
+            k++;
+            //z = (z << 1); //Not necessary
+            if (one_base != 4) {
+                one_base = 3 - one_base;
+            }
+            assert (one_base < 5);
+            read_2[j] = Uint8Tochar((uint8_t) one_base);
+            j--;
+        }
+        assert (j == -1);
+        
+        fprintf(jnk_fp_1, ">\n");
+        fprintf(jnk_fp_1, "%s\n", read_1);
+        fprintf(jnk_fp_2, ">\n");
+        fprintf(jnk_fp_2, "%s\n", read_2);
+    }
+    
+    fclose(jnk_fp_1);
+    fclose(jnk_fp_2);
+    return;
+}
+void write_compact_map_op(InputArgs& in_args, CompressionDataStructures& comDS) {
+	FILE * jnk_fp_1 = fopen("./rd_1.jnk.compact", "a");
+	if (jnk_fp_1 == NULL) {
+	    std::cerr << "Cannnot open file for writing : " << "./rd_1.jnk.align" << std::endl;
+	    assert (0);
+	}
+	FILE * jnk_fp_2 = fopen("./rd_2.jnk.compact", "a");
+	if (jnk_fp_2 == NULL) {
+	    std::cerr << "Cannnot open file for writing : " << "./rd_2.jnk.align" << std::endl;
+	    assert (0);
+	}
+    
+    int z, one_base, j;
+    std::uint32_t ri, k;
+    char read_1[READ_LEN_MAX], read_2[READ_LEN_MAX];
+    
+    int my_diffs_1, my_diffs_2;
+    for (std::size_t i = 0; i < comDS.fwd_mapped_reads.size(); i++) {
+        MappedRead & mf = comDS.fwd_mapped_reads[i];
+        MappedRead & mb = comDS.bwd_mapped_reads[i];
+        
+        my_diffs_1 = 0;
+        k = 32*READ_LEN_U32 - 4;
+        z = 1;
+        if (TestBit(mf.read, k)) {
+            my_diffs_1 |= z;
+        }
+        k++;
+        z = (z << 1);
+        if (TestBit(mf.read, k)) {
+            my_diffs_1 |= z;
+        }
+        k++;
+        z = (z << 1);
+        if (TestBit(mf.read, k)) {
+            my_diffs_1 |= z;
+        }
+        k++;
+        z = (z << 1);
+        if (TestBit(mf.read, k)) {
+            my_diffs_1 |= z;
+        }
+        assert (my_diffs_1 < 16);
+        
+        j = 0;
+        for (ri = 0, k = 0; ri < in_args.rdLength; ri++) {
+            one_base = 0;
+            z = 1;
+            if (TestBit(mf.read, k)) {
+                one_base |= z;
+            }
+            k++;
+            z = (z << 1);
+            if (TestBit(mf.read, k)) {
+                one_base |= z;
+            }
+            k++;
+            z = (z << 1);
+            if (TestBit(mf.read, k)) {
+                one_base |= z;
+            }
+            k++;
+            //z = (z << 1); //Not necessary
+            read_1[j] = Uint8Tochar((uint8_t) one_base);
+            j++;
+        }
+        read_1[j] = '\0';
+        
+        my_diffs_2 = 0;
+        k = 32*READ_LEN_U32 - 4;
+        z = 1;
+        if (TestBit(mf.read, k)) {
+            my_diffs_2 |= z;
+        }
+        k++;
+        z = (z << 1);
+        if (TestBit(mf.read, k)) {
+            my_diffs_2 |= z;
+        }
+        k++;
+        z = (z << 1);
+        if (TestBit(mf.read, k)) {
+            my_diffs_2 |= z;
+        }
+        k++;
+        z = (z << 1);
+        if (TestBit(mf.read, k)) {
+            my_diffs_2 |= z;
+        }
+        assert (my_diffs_2 < 16);
+        
+        j = (int) in_args.rdLength;
+        read_2[j] = '\0';
+        j--;
+        for (ri = 0, k = 0; ri < in_args.rdLength; ri++) {
+            one_base = 0;
+            z = 1;
+            if (TestBit(mb.read, k)) {
+                one_base |= z;
+            }
+            k++;
+            z = (z << 1);
+            if (TestBit(mb.read, k)) {
+                one_base |= z;
+            }
+            k++;
+            z = (z << 1);
+            if (TestBit(mb.read, k)) {
+                one_base |= z;
+            }
+            k++;
+            //z = (z << 1); //Not necessary
+            if (one_base != 4) {
+                one_base = 3 - one_base;
+            }
+            assert (one_base < 5);
+            read_2[j] = Uint8Tochar((uint8_t) one_base);
+            j--;
+        }
+        assert (j == -1);
+        
+        fprintf(jnk_fp_1, "> %u, %u, %d, %u, %s, %d\n", mf.location, mf.base_location, mf.diff_location, mf.id, mf.tmp_cigar, my_diffs_1);
+        fprintf(jnk_fp_1, "%s\n", read_1);
+        fprintf(jnk_fp_2, "> %u, %u, %d, %u, %s, %d\n", mb.location, mb.base_location, mb.diff_location, mb.id, mb.tmp_cigar, my_diffs_2);
+        fprintf(jnk_fp_2, "%s\n", read_2);
+    }
+    
+    fclose(jnk_fp_1);
+    fclose(jnk_fp_2);
+    return;
+}
+
 int perform_compaction(InputArgs& in_args, CompressionDataStructures& comDS) {
 	std::size_t num_write;
 	std::string cpct_file_name(in_args.comFileName);
@@ -834,6 +1050,10 @@ int perform_compaction(InputArgs& in_args, CompressionDataStructures& comDS) {
 	    assert (0);
 	}
 	
+// #if !NDEBUG
+//     in_args.threadCount = 2;
+// #endif
+// 	
     CompressionStatistics pc_cs;
     pc_cs.cs_pe_mapped_count = comDS.fwd_mapped_reads.size() * 2;
     CompressArgsForThread thread_args_array[in_args.threadCount];
@@ -931,6 +1151,11 @@ int perform_compaction(InputArgs& in_args, CompressionDataStructures& comDS) {
 	    std::cerr << "Error writing to " << cpct_file_name << std::endl;
 	    assert (0);
 	}
+//     
+// #if !NDEBUG
+//     write_compact_unm_op(in_args, comDS);
+// #endif
+// 
 	comDS.totalBytes += num_write;
 	free (save_unmapped_reads);
 	std::vector<UnmappedRead>().swap(comDS.unmapped_reads); //Free memory
@@ -977,6 +1202,11 @@ int perform_compaction(InputArgs& in_args, CompressionDataStructures& comDS) {
     assert (finished_thread_num == in_args.threadCount);
     
     free(comDS.ref_bases); comDS.ref_length = 0; //Free memory
+//     
+// #if !NDEBUG
+//     write_compact_map_op(in_args, comDS);
+// #endif
+// 
     std::vector<MappedRead>().swap(comDS.fwd_mapped_reads); //Free memory
     std::vector<MappedRead>().swap(comDS.bwd_mapped_reads); //Free memory
     write_se_data(cpct_file_fp, thread_args_array); //Also, free memory

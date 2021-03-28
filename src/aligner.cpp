@@ -295,6 +295,202 @@ void display_alignment_stats(InputArgs& in_args, AlignmentStatistics * das_asp) 
     }
 }
 
+__UTILS_UINT8_CHAR
+void write_align_op(InputArgs& in_args, CompressionDataStructures& comDS) {
+	FILE * jnk_fp_1 = fopen("./rd_1.jnk.align", "w");
+	if (jnk_fp_1 == NULL) {
+	    std::cerr << "Cannnot open file for writing : " << "./rd_1.jnk.align" << std::endl;
+	    assert (0);
+	}
+	FILE * jnk_fp_2 = fopen("./rd_2.jnk.align", "w");
+	if (jnk_fp_2 == NULL) {
+	    std::cerr << "Cannnot open file for writing : " << "./rd_2.jnk.align" << std::endl;
+	    assert (0);
+	}
+    
+    int z, one_base, j;
+    std::uint32_t ri, k;
+    char read_1[READ_LEN_MAX], read_2[READ_LEN_MAX];
+    
+    for (std::size_t i = 0; i < comDS.unmapped_reads.size(); i++) {
+        UnmappedRead & u1 = comDS.unmapped_reads[i];
+        
+        j = 0;
+        for (ri = 0, k = 0; ri < in_args.rdLength; ri++) {
+            one_base = 0;
+            z = 1;
+            if (TestBit(u1.fwd_read, k)) {
+                one_base |= z;
+            }
+            k++;
+            z = (z << 1);
+            if (TestBit(u1.fwd_read, k)) {
+                one_base |= z;
+            }
+            k++;
+            z = (z << 1);
+            if (TestBit(u1.fwd_read, k)) {
+                one_base |= z;
+            }
+            k++;
+            //z = (z << 1); //Not necessary
+            read_1[j] = Uint8Tochar((uint8_t) one_base);
+            j++;
+        }
+        read_1[j] = '\0';
+        
+        j = (int) in_args.rdLength;
+        read_2[j] = '\0';
+        j--;
+        for (ri = 0, k = 0; ri < in_args.rdLength; ri++) {
+            one_base = 0;
+            z = 1;
+            if (TestBit(u1.bwd_read, k)) {
+                one_base |= z;
+            }
+            k++;
+            z = (z << 1);
+            if (TestBit(u1.bwd_read, k)) {
+                one_base |= z;
+            }
+            k++;
+            z = (z << 1);
+            if (TestBit(u1.bwd_read, k)) {
+                one_base |= z;
+            }
+            k++;
+            //z = (z << 1); //Not necessary
+            if (one_base != 4) {
+                one_base = 3 - one_base;
+            }
+            assert (one_base < 5);
+            read_2[j] = Uint8Tochar((uint8_t) one_base);
+            j--;
+        }
+        assert (j == -1);
+        
+        fprintf(jnk_fp_1, ">\n");
+        fprintf(jnk_fp_1, "%s\n", read_1);
+        fprintf(jnk_fp_2, ">\n");
+        fprintf(jnk_fp_2, "%s\n", read_2);
+    }
+    
+    int my_diffs_1, my_diffs_2;
+    for (std::size_t i = 0; i < comDS.fwd_mapped_reads.size(); i++) {
+        MappedRead & mf = comDS.fwd_mapped_reads[i];
+        MappedRead & mb = comDS.bwd_mapped_reads[i];
+        
+        my_diffs_1 = 0;
+        k = 32*READ_LEN_U32 - 4;
+        z = 1;
+        if (TestBit(mf.read, k)) {
+            my_diffs_1 |= z;
+        }
+        k++;
+        z = (z << 1);
+        if (TestBit(mf.read, k)) {
+            my_diffs_1 |= z;
+        }
+        k++;
+        z = (z << 1);
+        if (TestBit(mf.read, k)) {
+            my_diffs_1 |= z;
+        }
+        k++;
+        z = (z << 1);
+        if (TestBit(mf.read, k)) {
+            my_diffs_1 |= z;
+        }
+        assert (my_diffs_1 < 16);
+        
+        j = 0;
+        for (ri = 0, k = 0; ri < in_args.rdLength; ri++) {
+            one_base = 0;
+            z = 1;
+            if (TestBit(mf.read, k)) {
+                one_base |= z;
+            }
+            k++;
+            z = (z << 1);
+            if (TestBit(mf.read, k)) {
+                one_base |= z;
+            }
+            k++;
+            z = (z << 1);
+            if (TestBit(mf.read, k)) {
+                one_base |= z;
+            }
+            k++;
+            //z = (z << 1); //Not necessary
+            read_1[j] = Uint8Tochar((uint8_t) one_base);
+            j++;
+        }
+        read_1[j] = '\0';
+        
+        my_diffs_2 = 0;
+        k = 32*READ_LEN_U32 - 4;
+        z = 1;
+        if (TestBit(mf.read, k)) {
+            my_diffs_2 |= z;
+        }
+        k++;
+        z = (z << 1);
+        if (TestBit(mf.read, k)) {
+            my_diffs_2 |= z;
+        }
+        k++;
+        z = (z << 1);
+        if (TestBit(mf.read, k)) {
+            my_diffs_2 |= z;
+        }
+        k++;
+        z = (z << 1);
+        if (TestBit(mf.read, k)) {
+            my_diffs_2 |= z;
+        }
+        assert (my_diffs_2 < 16);
+        
+        j = (int) in_args.rdLength;
+        read_2[j] = '\0';
+        j--;
+        for (ri = 0, k = 0; ri < in_args.rdLength; ri++) {
+            one_base = 0;
+            z = 1;
+            if (TestBit(mb.read, k)) {
+                one_base |= z;
+            }
+            k++;
+            z = (z << 1);
+            if (TestBit(mb.read, k)) {
+                one_base |= z;
+            }
+            k++;
+            z = (z << 1);
+            if (TestBit(mb.read, k)) {
+                one_base |= z;
+            }
+            k++;
+            //z = (z << 1); //Not necessary
+            if (one_base != 4) {
+                one_base = 3 - one_base;
+            }
+            assert (one_base < 5);
+            read_2[j] = Uint8Tochar((uint8_t) one_base);
+            j--;
+        }
+        assert (j == -1);
+        
+        fprintf(jnk_fp_1, "> %u, %u, %d, %u, %s, %d\n", mf.location, mf.base_location, mf.diff_location, mf.id, mf.tmp_cigar, my_diffs_1);
+        fprintf(jnk_fp_1, "%s\n", read_1);
+        fprintf(jnk_fp_2, "> %u, %u, %d, %u, %s, %d\n", mb.location, mb.base_location, mb.diff_location, mb.id, mb.tmp_cigar, my_diffs_2);
+        fprintf(jnk_fp_2, "%s\n", read_2);
+    }
+    
+    fclose(jnk_fp_1);
+    fclose(jnk_fp_2);
+    return;
+}
+
 int perform_alignment(InputArgs& in_args, CompressionDataStructures& comDS) {
     kseq_t * read_seq1;
     kseq_t * read_seq2;
@@ -368,6 +564,10 @@ int perform_alignment(InputArgs& in_args, CompressionDataStructures& comDS) {
     std::vector<MappedRead>(comDS.fwd_mapped_reads).swap(comDS.fwd_mapped_reads);
     std::vector<MappedRead>(comDS.bwd_mapped_reads).swap(comDS.bwd_mapped_reads);
     std::vector<UnmappedRead>(comDS.unmapped_reads).swap(comDS.unmapped_reads);
+    
+// #if !NDEBUG
+//     write_align_op(in_args, comDS);
+// #endif
 	
 	return 0;
 }

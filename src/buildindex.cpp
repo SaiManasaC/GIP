@@ -26,6 +26,14 @@ int parse_reference_com(InputArgs& in_args, CompressionDataStructures& comDS) {
 	}
 	kseq_t * ref_seq;
 	ref_seq = kseq_init(fileno(ref_file_fp));
+    
+// #if !NDEBUG
+// 	FILE * jnk_fp = fopen("./ref.jnk.txt", "w");
+// 	if (jnk_fp == NULL) {
+// 	    std::cerr << "Cannnot open file for writing : " << "./ref.jnk.txt" << std::endl;
+// 	    assert (0);
+// 	}
+// #endif
 	
 	std::uint32_t scaffold_count  = 0;
 	std::uint32_t all_bases_count = 0;
@@ -41,6 +49,9 @@ int parse_reference_com(InputArgs& in_args, CompressionDataStructures& comDS) {
 		for (i = 0; i < l; i++) {
 			char c = ref_seq->seq.s[i];
 			if (charToUint8(c) < 4) {
+// #if !NDEBUG
+// 			    fprintf(jnk_fp, "%c\n", c);
+// #endif
 			    comDS.ref_bases[val_bases_count] = charToUint8(c);
 			    val_bases_count++;
 			    if (val_bases_count == REF_LEN_MAX) {
@@ -70,6 +81,10 @@ int parse_reference_com(InputArgs& in_args, CompressionDataStructures& comDS) {
     kseq_destroy(ref_seq);
     fclose(ref_file_fp);
     
+// #if !NDEBUG
+//     fclose(jnk_fp);
+// #endif
+	
     return 0;
 }
 
