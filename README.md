@@ -29,8 +29,12 @@ Inside refcom directory,
 --rd1_file_name <INPUT_FASTQ_FILE_1> \
 --rd2_file_name <INPUT_FASTQ_FILE_2> \
 --com_file_name <COMPRESSION_OUTPUT> \
---thread_count <THREAD_COUNT>
+--thread_count <THREAD_COUNT>        \
+--write_sep_files
 ```
+
+> write_sep_files is an optional argument. When enabled, ...
+> unmapped reads, mapped reads, and paired-end information (for mapped reads) are compressed separately
 
 ### Decompression 
 

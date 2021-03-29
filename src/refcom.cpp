@@ -12,6 +12,7 @@ int parse_args(int argc, char* argv[], InputArgs& in_args){
   const char* f2_arg = "rd2_file_name";
   const char* f3_arg = "com_file_name";
   const char* tc_arg = "thread_count";
+  const char* sf_arg = "write_sep_files";
   //const char* l1_arg = "rd1_length";
   //const char* l2_arg = "rd2_length";
   //const char* rl_arg = "rd_length";
@@ -45,6 +46,9 @@ int parse_args(int argc, char* argv[], InputArgs& in_args){
   cmd.defineOption(tc_arg, "Thread count. Applies only for compression",
                    ArgvParser::OptionRequiresValue);
   //cmd.defineOptionAlternative(tc_arg, "");
+
+  cmd.defineOption(sf_arg, "Write and compress files separately. Applies only for compression");
+  //cmd.defineOptionAlternative(sf_arg, "");
 
 /*
   cmd.defineOption(l1_arg, "Read-1 length",
@@ -111,6 +115,10 @@ int parse_args(int argc, char* argv[], InputArgs& in_args){
       }
   }
 
+  if(cmd.foundOption(sf_arg)) {
+      in_args.writeSepFiles = true;
+  }
+
 /*
   if(cmd.foundOption(l1_arg)) {
       in_args.rd1Length = (std::uint32_t) std::stoi(cmd.optionValue(l1_arg));
@@ -144,6 +152,9 @@ int parse_args(int argc, char* argv[], InputArgs& in_args){
   std::cerr << "Com File Name      : " << in_args.comFileName << std::endl;
   if (!in_args.operation.compare("compression")) {
     std::cerr << "Thread Count       : " << in_args.threadCount << std::endl;
+  }
+  if (in_args.writeSepFiles) {
+    std::cerr << "Write sep files is : " << "enabled"           << std::endl;
   }
   //std::cerr << "Rd1 Length         : " << in_args.rd1Length   << std::endl;
   //std::cerr << "Rd2 Length         : " << in_args.rd2Length   << std::endl;

@@ -132,6 +132,7 @@ struct InputArgs{
     std::string rd1FileName;
     std::string rd2FileName;
     std::string comFileName;
+    bool writeSepFiles;
 
     //Need below only for compression
     std::uint32_t threadCount; //Size is recorded
@@ -148,6 +149,7 @@ struct InputArgs{
         rd2Length   = 0;
         rdLength    = 0;
         //kmerLength = 0;
+        writeSepFiles = false;
     }
 };
 
@@ -163,6 +165,8 @@ struct CompressionDataStructures{
     std::vector<PairingInfoBwd> bwd_pairing_info;
     double totalTime;
     std::size_t totalBytes;
+    std::size_t unmBytes;
+    std::size_t peBytes;
     
     //std::vector<std::uint32_t> tmp_lookup_table;
     //std::vector<std::uint32_t> tmp_occurrence_table;

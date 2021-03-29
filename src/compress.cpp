@@ -791,7 +791,11 @@ void write_pe_data(FILE * wpd_fp, CompressArgsForThread * wpd_tap) {
 	        std::cerr << "Error writing to .cpct file" << std::endl;
 	        assert (0);
 	    }
-	    wpd_tap[i].caft_com_ds->totalBytes += num_write;
+        if (wpd_tap[0].caft_in_args->writeSepFiles) {
+            wpd_tap[i].caft_com_ds->peBytes += num_write;
+        } else {
+	        wpd_tap[i].caft_com_ds->totalBytes += num_write;
+        }
 	    num_write = fwrite(wpd_tap[i].caft_pe_rel_locns.data(), 1, wpd_tap[i].caft_pe_rel_locns.size(), wpd_fp);
 	    if (num_write) {
 	        //std::cout << "Wrote " << num_write << " bytes to .cpct file" << std::endl;
@@ -799,7 +803,11 @@ void write_pe_data(FILE * wpd_fp, CompressArgsForThread * wpd_tap) {
 	        std::cerr << "Error writing to .cpct file" << std::endl;
 	        assert (0);
 	    }
-	    wpd_tap[i].caft_com_ds->totalBytes += num_write;
+        if (wpd_tap[0].caft_in_args->writeSepFiles) {
+            wpd_tap[i].caft_com_ds->peBytes += num_write;
+        } else {
+	        wpd_tap[i].caft_com_ds->totalBytes += num_write;
+        }
 	    std::vector<std::uint8_t>().swap(wpd_tap[i].caft_pe_rel_locns); //Free memory
     }
     for (std::uint32_t i = 0; i < wpd_tap[0].caft_in_args->threadCount; i++) {
@@ -811,7 +819,11 @@ void write_pe_data(FILE * wpd_fp, CompressArgsForThread * wpd_tap) {
 	        std::cerr << "Error writing to .cpct file" << std::endl;
 	        assert (0);
 	    }
-	    wpd_tap[i].caft_com_ds->totalBytes += num_write;
+        if (wpd_tap[0].caft_in_args->writeSepFiles) {
+            wpd_tap[i].caft_com_ds->peBytes += num_write;
+        } else {
+	        wpd_tap[i].caft_com_ds->totalBytes += num_write;
+        }
 	    num_write = fwrite(wpd_tap[i].caft_pe_rel_posns.data(), 1, wpd_tap[i].caft_pe_rel_posns.size(), wpd_fp);
 	    if (num_write) {
 	        //std::cout << "Wrote " << num_write << " bytes to .cpct file" << std::endl;
@@ -819,7 +831,11 @@ void write_pe_data(FILE * wpd_fp, CompressArgsForThread * wpd_tap) {
 	        std::cerr << "Error writing to .cpct file" << std::endl;
 	        assert (0);
 	    }
-	    wpd_tap[i].caft_com_ds->totalBytes += num_write;
+        if (wpd_tap[0].caft_in_args->writeSepFiles) {
+            wpd_tap[i].caft_com_ds->peBytes += num_write;
+        } else {
+	        wpd_tap[i].caft_com_ds->totalBytes += num_write;
+        }
 	    std::vector<std::uint8_t>().swap(wpd_tap[i].caft_pe_rel_posns); //Free memory
     }
 }
@@ -1042,11 +1058,25 @@ void write_compact_map_op(InputArgs& in_args, CompressionDataStructures& comDS) 
 
 int perform_compaction(InputArgs& in_args, CompressionDataStructures& comDS) {
 	std::size_t num_write;
+    std::string unm_file_name(in_args.comFileName);
+    unm_file_name.append(".unm");
 	std::string cpct_file_name(in_args.comFileName);
 	cpct_file_name.append(".cpct");
+    std::string pe_file_name(in_args.comFileName);
+    pe_file_name.append(".pe");
+	FILE * unm_file_fp = fopen(unm_file_name.c_str(), "w");
+	if (unm_file_fp == NULL) {
+	    std::cerr << "Cannnot open file for writing : " << unm_file_name << std::endl;
+	    assert (0);
+	}
 	FILE * cpct_file_fp = fopen(cpct_file_name.c_str(), "w");
 	if (cpct_file_fp == NULL) {
 	    std::cerr << "Cannnot open file for writing : " << cpct_file_name << std::endl;
+	    assert (0);
+	}
+	FILE * pe_file_fp = fopen(pe_file_name.c_str(), "w");
+	if (pe_file_fp == NULL) {
+	    std::cerr << "Cannnot open file for writing : " << pe_file_name << std::endl;
 	    assert (0);
 	}
 	
@@ -1135,20 +1165,24 @@ int perform_compaction(InputArgs& in_args, CompressionDataStructures& comDS) {
 	}
 	comDS.totalBytes += num_write;
 	my_size = comDS.unmapped_reads.size();
-	num_write = fwrite(&(my_size), 1, sizeof(std::size_t), cpct_file_fp);
+	num_write = fwrite(&(my_size), 1, sizeof(std::size_t), in_args.writeSepFiles ? unm_file_fp : cpct_file_fp);
 	if (num_write) {
 	    //std::cout << "Wrote unmapped read count to " << cpct_file_name << std::endl;
 	    //std::cout << "Bytes written : " << num_write << std::endl;
 	} else {
-	    std::cerr << "Error writing to " << cpct_file_name << std::endl;
+	    std::cerr << "Error writing to " << (in_args.writeSepFiles ? unm_file_name : cpct_file_name) << std::endl;
 	    assert (0);
 	}
-	comDS.totalBytes += num_write;
-	num_write = fwrite(save_unmapped_reads, 1, comDS.unmapped_reads.size() * (in_args.rdLength * 2), cpct_file_fp);
+    if (in_args.writeSepFiles) {
+        comDS.unmBytes += num_write;
+    } else {
+	    comDS.totalBytes += num_write;
+    }
+	num_write = fwrite(save_unmapped_reads, 1, comDS.unmapped_reads.size() * (in_args.rdLength * 2), in_args.writeSepFiles ? unm_file_fp : cpct_file_fp);
 	if (num_write) {
-	    std::cout << "Wrote " << num_write << " bytes to " << cpct_file_name << std::endl;
+	    std::cout << "Wrote " << num_write << " bytes to " << (in_args.writeSepFiles ? unm_file_name : cpct_file_name) << std::endl;
 	} else {
-	    std::cerr << "Error writing to " << cpct_file_name << std::endl;
+	    std::cerr << "Error writing to " << (in_args.writeSepFiles ? unm_file_name : cpct_file_name) << std::endl;
 	    assert (0);
 	}
 //     
@@ -1156,7 +1190,11 @@ int perform_compaction(InputArgs& in_args, CompressionDataStructures& comDS) {
 //     write_compact_unm_op(in_args, comDS);
 // #endif
 // 
-	comDS.totalBytes += num_write;
+    if (in_args.writeSepFiles) {
+        comDS.unmBytes += num_write;
+    } else {
+	    comDS.totalBytes += num_write;
+    }
 	free (save_unmapped_reads);
 	std::vector<UnmappedRead>().swap(comDS.unmapped_reads); //Free memory
     
@@ -1259,15 +1297,19 @@ int perform_compaction(InputArgs& in_args, CompressionDataStructures& comDS) {
 #if !NDEBUG
     std::cout << "pe_rel_locn_mean : " << thread_args_array[0].caft_pe_rel_locn_mean << std::endl;
 #endif
-	num_write = fwrite(&(pe_rel_locn_mean), 1, sizeof(int64_t), cpct_file_fp);
+	num_write = fwrite(&(pe_rel_locn_mean), 1, sizeof(int64_t), in_args.writeSepFiles ? pe_file_fp : cpct_file_fp);
 	if (num_write) {
 	    //std::cout << "Wrote pe_rel_locn_mean to " << cpct_file_name << std::endl;
 	    //std::cout << "Bytes written : " << num_write << std::endl;
 	} else {
-	    std::cerr << "Error writing to " << cpct_file_name << std::endl;
+	    std::cerr << "Error writing to " << (in_args.writeSepFiles ? pe_file_name : cpct_file_name) << std::endl;
 	    assert (0);
 	}
-	comDS.totalBytes += num_write;
+    if (in_args.writeSepFiles) {
+        comDS.peBytes += num_write;
+    } else {
+	    comDS.totalBytes += num_write;
+    }
     
     finished_thread_num = 0; err = 0;
     for (std::uint32_t i = 0; i < in_args.threadCount; i++) {
@@ -1292,9 +1334,11 @@ int perform_compaction(InputArgs& in_args, CompressionDataStructures& comDS) {
     
     std::vector<PairingInfoFwd>().swap(comDS.fwd_pairing_info); //Free memory
     std::vector<PairingInfoBwd>().swap(comDS.bwd_pairing_info); //Free memory
-    write_pe_data(cpct_file_fp, thread_args_array); //Also, free memory
+    write_pe_data(in_args.writeSepFiles ? pe_file_fp : cpct_file_fp, thread_args_array); //Also, free memory
     
+    fclose(unm_file_fp);
     fclose(cpct_file_fp);
+    fclose(pe_file_fp);
 #if !NDEBUG
     display_compression_stats(in_args, &pc_cs);
 #endif
@@ -1310,12 +1354,81 @@ int compress_reads(InputArgs& in_args, CompressionDataStructures& comDS) {
     comDS.totalTime += (realtime() - startTime);
     std::cout << "Compacted reads in " << realtime() - startTime << " s." << std::endl;
     std::cout << "CPU time : " << cputime() << " s." << std::endl;
+    std::string my_run_cmd;
+    if (in_args.writeSepFiles) {
+        std::cout << "unmBytes after compaction:   " << comDS.unmBytes << std::endl;
+        std::cout << "peBytes after compaction:    " << comDS.peBytes << std::endl;
+    }
     std::cout << "totalBytes after compaction: " << comDS.totalBytes << std::endl;
+    
+	std::string unm_file_name(in_args.comFileName);
+	unm_file_name.append(".unm");
+    if (in_args.writeSepFiles) {
+	    startTime = realtime();
+        my_run_cmd = in_args.bscExecutable;
+        my_run_cmd.append(" e ");
+        my_run_cmd.append(unm_file_name);
+        my_run_cmd.append(" ");
+        my_run_cmd.append(in_args.comFileName);
+        my_run_cmd.append(" -p -b");
+        std::uint32_t myTC = in_args.threadCount;
+        double tmpblockSize = ((double) comDS.unmBytes)/(myTC * 1000000);
+        std::cout << "Initial block size for bsc: " << (std::uint32_t) tmpblockSize << std::endl;
+        while (tmpblockSize > 1024) {
+            myTC += in_args.threadCount;
+            tmpblockSize = ((double) comDS.unmBytes)/(myTC * 1000000);
+        }
+        std::uint32_t blockSize = (std::uint32_t) tmpblockSize;
+        if (blockSize == 0) blockSize = 1;
+        std::cout << "Final block size for bsc  : " << blockSize << std::endl;
+        my_run_cmd.append(std::to_string(blockSize));
+        std::cout << my_run_cmd << std::endl;
+        system((const char *) my_run_cmd.c_str());
+        comDS.totalTime += (realtime() - startTime);
+        std::cout << "Compressed unm using bsc in " << realtime() - startTime << " s." << std::endl;
+        std::cout << "CPU time : " << cputime() << " s." << std::endl;
+    }
+    my_run_cmd = "rm -rf ";
+    my_run_cmd.append(unm_file_name);
+    std::cout << my_run_cmd << std::endl;
+    system((const char *) my_run_cmd.c_str());
+    
+	std::string pe_file_name(in_args.comFileName);
+	pe_file_name.append(".pe");
+    if (in_args.writeSepFiles) {
+	    startTime = realtime();
+        my_run_cmd = in_args.bscExecutable;
+        my_run_cmd.append(" e ");
+        my_run_cmd.append(pe_file_name);
+        my_run_cmd.append(" ");
+        my_run_cmd.append(in_args.comFileName);
+        my_run_cmd.append(" -p -b");
+        std::uint32_t myTC = in_args.threadCount;
+        double tmpblockSize = ((double) comDS.peBytes)/(myTC * 1000000);
+        std::cout << "Initial block size for bsc: " << (std::uint32_t) tmpblockSize << std::endl;
+        while (tmpblockSize > 1024) {
+            myTC += in_args.threadCount;
+            tmpblockSize = ((double) comDS.peBytes)/(myTC * 1000000);
+        }
+        std::uint32_t blockSize = (std::uint32_t) tmpblockSize;
+        if (blockSize == 0) blockSize = 1;
+        std::cout << "Final block size for bsc  : " << blockSize << std::endl;
+        my_run_cmd.append(std::to_string(blockSize));
+        std::cout << my_run_cmd << std::endl;
+        system((const char *) my_run_cmd.c_str());
+        comDS.totalTime += (realtime() - startTime);
+        std::cout << "Compressed pe using bsc in " << realtime() - startTime << " s." << std::endl;
+        std::cout << "CPU time : " << cputime() << " s." << std::endl;
+    }
+    my_run_cmd = "rm -rf ";
+    my_run_cmd.append(pe_file_name);
+    std::cout << my_run_cmd << std::endl;
+    system((const char *) my_run_cmd.c_str());
     
 	startTime = realtime();
 	std::string cpct_file_name(in_args.comFileName);
 	cpct_file_name.append(".cpct");
-    std::string my_run_cmd(in_args.bscExecutable);
+    my_run_cmd = in_args.bscExecutable;
     my_run_cmd.append(" e ");
     my_run_cmd.append(cpct_file_name);
     my_run_cmd.append(" ");
@@ -1332,14 +1445,14 @@ int compress_reads(InputArgs& in_args, CompressionDataStructures& comDS) {
     if (blockSize == 0) blockSize = 1;
     std::cout << "Final block size for bsc  : " << blockSize << std::endl;
     my_run_cmd.append(std::to_string(blockSize));
-    //std::cout << my_run_cmd << std::endl;
+    std::cout << my_run_cmd << std::endl;
     system((const char *) my_run_cmd.c_str());
     comDS.totalTime += (realtime() - startTime);
     std::cout << "Compressed using bsc in " << realtime() - startTime << " s." << std::endl;
     std::cout << "CPU time : " << cputime() << " s." << std::endl;
     my_run_cmd = "rm -rf ";
     my_run_cmd.append(cpct_file_name);
-    //std::cout << my_run_cmd << std::endl;
+    std::cout << my_run_cmd << std::endl;
     system((const char *) my_run_cmd.c_str());
     
 	return 0;
