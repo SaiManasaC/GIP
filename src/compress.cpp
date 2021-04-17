@@ -1388,9 +1388,17 @@ int compress_reads(InputArgs& in_args, CompressionDataStructures& comDS) {
         std::cout << "Compressed unm using bsc in " << realtime() - startTime << " s." << std::endl;
         std::cout << "CPU time : " << cputime() << " s." << std::endl;
     }
+    my_run_cmd = "ls -ltr ";
+    my_run_cmd.append(unm_file_name);
+#if !NDEBUG
+    std::cout << my_run_cmd << std::endl;
+    system((const char *) my_run_cmd.c_str());
+#endif
     my_run_cmd = "rm -rf ";
     my_run_cmd.append(unm_file_name);
+#if !NDEBUG
     std::cout << my_run_cmd << std::endl;
+#endif
     system((const char *) my_run_cmd.c_str());
     
 	std::string pe_file_name(in_args.comFileName);
@@ -1420,9 +1428,17 @@ int compress_reads(InputArgs& in_args, CompressionDataStructures& comDS) {
         std::cout << "Compressed pe using bsc in " << realtime() - startTime << " s." << std::endl;
         std::cout << "CPU time : " << cputime() << " s." << std::endl;
     }
+    my_run_cmd = "ls -ltr ";
+    my_run_cmd.append(pe_file_name);
+#if !NDEBUG
+    std::cout << my_run_cmd << std::endl;
+    system((const char *) my_run_cmd.c_str());
+#endif
     my_run_cmd = "rm -rf ";
     my_run_cmd.append(pe_file_name);
+#if !NDEBUG
     std::cout << my_run_cmd << std::endl;
+#endif
     system((const char *) my_run_cmd.c_str());
     
 	startTime = realtime();
@@ -1450,9 +1466,17 @@ int compress_reads(InputArgs& in_args, CompressionDataStructures& comDS) {
     comDS.totalTime += (realtime() - startTime);
     std::cout << "Compressed using bsc in " << realtime() - startTime << " s." << std::endl;
     std::cout << "CPU time : " << cputime() << " s." << std::endl;
+    my_run_cmd = "ls -ltr ";
+    my_run_cmd.append(cpct_file_name);
+#if !NDEBUG
+    std::cout << my_run_cmd << std::endl;
+    system((const char *) my_run_cmd.c_str());
+#endif
     my_run_cmd = "rm -rf ";
     my_run_cmd.append(cpct_file_name);
+#if !NDEBUG
     std::cout << my_run_cmd << std::endl;
+#endif
     system((const char *) my_run_cmd.c_str());
     
 	return 0;

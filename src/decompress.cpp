@@ -262,6 +262,10 @@ int write_unm_data(InputArgs& in_args, DecompressionDataStructures& decomDS) {
     num_write = fwrite(decomDS.unm_fwd_reads.data(), sizeof(char), decomDS.unm_fwd_reads.size(), *(decomDS.o1_fp));
     if (num_write) {
 	    //std::cout << "Wrote " << num_write << " bytes to rd1 file" << std::endl;
+#if !NDEBUG
+	    std::cout << "To write " << decomDS.unm_fwd_reads.size() << " bytes to rd1 file" << std::endl;
+        std::cout << "Wrote    " << num_write << " bytes to rd1 file" << std::endl;
+#endif
     } else {
 	    std::cerr << "Error writing to rd1 file" << std::endl;
 	    assert (0);
@@ -271,6 +275,10 @@ int write_unm_data(InputArgs& in_args, DecompressionDataStructures& decomDS) {
     num_write = fwrite(decomDS.unm_bwd_reads.data(), sizeof(char), decomDS.unm_bwd_reads.size(), *(decomDS.o2_fp));
     if (num_write) {
 	    //std::cout << "Wrote " << num_write << " bytes to rd2 file" << std::endl;
+#if !NDEBUG
+	    std::cout << "To write " << decomDS.unm_bwd_reads.size() << " bytes to rd2 file" << std::endl;
+        std::cout << "Wrote    " << num_write << " bytes to rd2 file" << std::endl;
+#endif
     } else {
 	    std::cerr << "Error writing to rd2 file" << std::endl;
 	    assert (0);
@@ -373,6 +381,10 @@ int write_bwd_data(InputArgs& in_args, DecompressionDataStructures& decomDS) {
     num_write = fwrite(decomDS.bwd_print.data(), sizeof(char), decomDS.bwd_print.size(), *(decomDS.o2_fp));
     if (num_write) {
 	    //std::cout << "Wrote " << num_write << " bytes to rd2 file" << std::endl;
+#if !NDEBUG
+	    std::cout << "To write " << decomDS.bwd_print.size() << " bytes to rd2 file" << std::endl;
+        std::cout << "Wrote    " << num_write << " bytes to rd2 file" << std::endl;
+#endif
     } else {
 	    std::cerr << "Error writing to rd2 file" << std::endl;
 	    assert (0);
@@ -458,6 +470,10 @@ void write_fwd_data(DecompressArgsForThread * wfd_tap) {
 	    num_write = fwrite(wfd_tap[i].daft_fwd_reads.data(), sizeof(char), wfd_tap[i].daft_fwd_reads.size(), wfd_fp);
 	    if (num_write) {
 	        //std::cout << "Wrote " << num_write << " bytes to rd1 file" << std::endl;
+#if !NDEBUG
+	        std::cout << "To write " << wfd_tap[i].daft_fwd_reads.size() << " bytes to rd1 file" << std::endl;
+            std::cout << "Wrote    " << num_write << " bytes to rd1 file" << std::endl;
+#endif
 	    } else {
 	        std::cerr << "Error writing to rd1 file" << std::endl;
 	        assert (0);
@@ -1264,10 +1280,50 @@ int decompress_reads(InputArgs& in_args, DecompressionDataStructures& decomDS) {
     std::cout << "CPU time : " << cputime() << " s." << std::endl;
     std::cout << "totalBytes for uncompaction: " << decomDS.totalBytes << std::endl;
     
+    my_run_cmd = "ls -ltr ";
+    my_run_cmd.append(cpct_file_name);
+#if !NDEBUG
+    std::cout << my_run_cmd << std::endl;
+    system((const char *) my_run_cmd.c_str());
+#endif
     my_run_cmd = "rm -rf ";
     my_run_cmd.append(cpct_file_name);
-    //std::cout << my_run_cmd << std::endl;
+#if !NDEBUG
+    std::cout << my_run_cmd << std::endl;
+#endif
     system((const char *) my_run_cmd.c_str());
+    
+    my_run_cmd = "ls -ltr ";
+    my_run_cmd.append(in_args.rd1FileName.c_str());
+#if !NDEBUG
+    std::cout << my_run_cmd << std::endl;
+    system((const char *) my_run_cmd.c_str());
+#endif
+    my_run_cmd = "wc ";
+    my_run_cmd.append(in_args.rd1FileName.c_str());
+#if !NDEBUG
+    std::cout << my_run_cmd << std::endl;
+    system((const char *) my_run_cmd.c_str());
+#endif
+    
+    my_run_cmd = "ls -ltr ";
+    my_run_cmd.append(in_args.rd2FileName.c_str());
+#if !NDEBUG
+    std::cout << my_run_cmd << std::endl;
+    system((const char *) my_run_cmd.c_str());
+#endif
+    my_run_cmd = "wc ";
+    my_run_cmd.append(in_args.rd2FileName.c_str());
+#if !NDEBUG
+    std::cout << my_run_cmd << std::endl;
+    system((const char *) my_run_cmd.c_str());
+#endif
+
+#if !NDEBUG
+    printf("size of char: %lu\n", sizeof(char));
+    printf("size of unsigned int: %lu\n", sizeof(unsigned int));
+    printf("size of size_t: %lu\n", sizeof(std::size_t));
+#endif
     
 	return 0;
 }

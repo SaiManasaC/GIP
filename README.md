@@ -33,7 +33,7 @@ Inside refcom directory,
 --write_sep_files
 ```
 
-> write_sep_files is an optional argument. When enabled, ...
+> write_sep_files is an optional argument. When enabled, 
 > unmapped reads, mapped reads, and paired-end information (for mapped reads) are compressed separately
 
 ### Decompression 
