@@ -299,9 +299,9 @@ void *decompactReads0Thread(void *arg) {
     }
     //std::cout << tap->daft_thread_id << " : " << index_start << " : " << index_end << std::endl;
     
-    std::size_t ip_idx = index_start * (tap->daft_in_args->rdLength * 2);
-    std::size_t o1_idx = index_start * (tap->daft_in_args->rdLength + 3);
-    std::size_t o2_idx = index_start * (tap->daft_in_args->rdLength + 3);
+    std::size_t ip_idx = ((std::size_t) index_start) * (tap->daft_in_args->rdLength * 2);
+    std::size_t o1_idx = ((std::size_t) index_start) * (tap->daft_in_args->rdLength + 3);
+    std::size_t o2_idx = ((std::size_t) index_start) * (tap->daft_in_args->rdLength + 3);
     std::uint8_t my_rc_bases[READ_LEN_MAX];
     for (std::uint32_t i = index_start; i <= index_end; i++) {
         tap->daft_decom_ds->unm_fwd_reads.data()[o1_idx] = '>'; o1_idx += 1;
@@ -407,7 +407,7 @@ void *decompactReads3Thread(void *arg) {
 	std::uint8_t my_bases[READ_LEN_MAX], my_rc_bases[READ_LEN_MAX];
 	std::uint32_t ri, k;
 	std::uint8_t z, one_base;
-    std::size_t op_idx = index_start * (tap->daft_in_args->rdLength + 3);
+    std::size_t op_idx = ((std::size_t) index_start) * (tap->daft_in_args->rdLength + 3);
     for (std::uint32_t i = index_start; i <= index_end; i++) {
         DecomBwdRead & u1 = tap->daft_decom_ds->bwd_reads[i];
         for (ri = 0, k = 0; ri < tap->daft_in_args->rdLength; ri++) {
@@ -703,7 +703,7 @@ void *decompactReads1Thread(void *arg) {
     }
     //std::cout << tap->daft_thread_id << " : " << index_start << " : " << index_end << std::endl;
     
-    tap->daft_fwd_reads.resize((index_end - index_start + 1) * (tap->daft_in_args->rdLength + 3));
+    tap->daft_fwd_reads.resize(((std::size_t) (index_end - index_start + 1)) * (tap->daft_in_args->rdLength + 3));
     std::uint32_t loc_idx = 0, prev_locn = 0, curr_locn = 0;
     std::uint32_t dct_idx = 0, dpv_idx = 0;
     std::size_t fwd_idx = 0;
@@ -1299,12 +1299,12 @@ int decompress_reads(InputArgs& in_args, DecompressionDataStructures& decomDS) {
     std::cout << my_run_cmd << std::endl;
     system((const char *) my_run_cmd.c_str());
 #endif
-    my_run_cmd = "wc ";
-    my_run_cmd.append(in_args.rd1FileName.c_str());
-#if !NDEBUG
-    std::cout << my_run_cmd << std::endl;
-    system((const char *) my_run_cmd.c_str());
-#endif
+//     my_run_cmd = "wc ";
+//     my_run_cmd.append(in_args.rd1FileName.c_str());
+// #if !NDEBUG
+//     std::cout << my_run_cmd << std::endl;
+//     system((const char *) my_run_cmd.c_str());
+// #endif
     
     my_run_cmd = "ls -ltr ";
     my_run_cmd.append(in_args.rd2FileName.c_str());
@@ -1312,12 +1312,12 @@ int decompress_reads(InputArgs& in_args, DecompressionDataStructures& decomDS) {
     std::cout << my_run_cmd << std::endl;
     system((const char *) my_run_cmd.c_str());
 #endif
-    my_run_cmd = "wc ";
-    my_run_cmd.append(in_args.rd2FileName.c_str());
-#if !NDEBUG
-    std::cout << my_run_cmd << std::endl;
-    system((const char *) my_run_cmd.c_str());
-#endif
+//     my_run_cmd = "wc ";
+//     my_run_cmd.append(in_args.rd2FileName.c_str());
+// #if !NDEBUG
+//     std::cout << my_run_cmd << std::endl;
+//     system((const char *) my_run_cmd.c_str());
+// #endif
 
 #if !NDEBUG
     printf("size of char: %lu\n", sizeof(char));

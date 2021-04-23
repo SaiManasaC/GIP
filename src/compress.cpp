@@ -136,7 +136,7 @@ void *compactReads1Thread(void *arg) {
     }
     //std::cout << tap->caft_thread_id << " : " << index_start << " : " << index_end << std::endl;
     
-    std::uint8_t * b1 = tap->caft_sur + index_start * ((tap->caft_in_args->rdLength) * 2);
+    std::uint8_t * b1 = tap->caft_sur + ((std::size_t) index_start) * ((tap->caft_in_args->rdLength) * 2);
     std::uint32_t ri, k;
     int z, one_base;
     for (std::uint32_t i = index_start; i <= index_end; i++) {
@@ -455,6 +455,7 @@ void *compactReads2Thread(void *arg) {
         if ((tap->caft_com_ds->fwd_mapped_reads)[i].location == fwd_prev_locn) {
             locn_rel_posn++;
         } else {
+            fwd_prev_locn = (tap->caft_com_ds->fwd_mapped_reads)[i].location;
             locn_rel_posn = 0;
         }
         (tap->caft_com_ds->fwd_pairing_info)[i].id = (tap->caft_com_ds->fwd_mapped_reads)[i].id;
