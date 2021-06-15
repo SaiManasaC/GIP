@@ -1075,6 +1075,15 @@ int perform_decompaction(InputArgs& in_args, DecompressionDataStructures& decomD
 	}
 	decomDS.o2_fp = &read_seq_fp2;
     
+	num_read = fread(&(in_args.updateReference), 1, sizeof(std::uint32_t), cpct_file_fp);
+	if (num_read) {
+	    std::cout << "Update reference : " << in_args.updateReference << std::endl;
+	    //std::cout << "Bytes read   : " << num_read << std::endl;
+	} else {
+	    std::cerr << "Error reading from " << cpct_file_name << std::endl;
+	    assert (0);
+	}
+	decomDS.totalBytes += num_read;
 	num_read = fread(&(in_args.threadCount), 1, sizeof(std::uint32_t), cpct_file_fp);
 	if (num_read) {
 	    std::cout << "Thread count : " << in_args.threadCount << std::endl;

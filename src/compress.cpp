@@ -28,6 +28,12 @@ void initialize_compression_stats(InputArgs& in_args, CompressionStatistics * ic
     (ics_csp->cs_pe_rel_posns_count).resize(in_args.threadCount, 0);
     
     (ics_csp->cs_differences_count_befr).resize((in_args.threadCount * 16), 0);
+    (ics_csp->cs_differences_count_aftr).resize((in_args.threadCount * 16), 0);
+
+    (ics_csp->cs_edit_count_aftr).resize(in_args.threadCount, 0);
+    (ics_csp->cs_subs_count_aftr).resize(in_args.threadCount, 0);
+    (ics_csp->cs_inss_count_aftr).resize(in_args.threadCount, 0);
+    (ics_csp->cs_dels_count_aftr).resize(in_args.threadCount, 0);
 }
 
 void display_compression_stats(InputArgs& in_args, CompressionStatistics * dcs_csp) {
@@ -51,6 +57,10 @@ void display_compression_stats(InputArgs& in_args, CompressionStatistics * dcs_c
     std::size_t total_bwd_diff_values_count = 0;
     std::size_t total_pe_rel_locns_count = 0;
     std::size_t total_pe_rel_posns_count = 0;
+    std::size_t total_edit_count_aftr = 0;
+    std::size_t total_subs_count_aftr = 0;
+    std::size_t total_inss_count_aftr = 0;
+    std::size_t total_dels_count_aftr = 0;
     for (std::uint32_t i = 0; i < in_args.threadCount; i++) {
         total_cigar_resolved_count += (dcs_csp->cs_cigar_resolved_count)[i];
         total_diff_more_count += (dcs_csp->cs_diff_more_count)[i];
@@ -72,11 +82,21 @@ void display_compression_stats(InputArgs& in_args, CompressionStatistics * dcs_c
         total_bwd_diff_values_count += (dcs_csp->cs_bwd_diff_values_count)[i];
         total_pe_rel_locns_count += (dcs_csp->cs_pe_rel_locns_count)[i];
         total_pe_rel_posns_count += (dcs_csp->cs_pe_rel_posns_count)[i];
+        total_edit_count_aftr += (dcs_csp->cs_edit_count_aftr)[i];
+        total_subs_count_aftr += (dcs_csp->cs_subs_count_aftr)[i];
+        total_inss_count_aftr += (dcs_csp->cs_inss_count_aftr)[i];
+        total_dels_count_aftr += (dcs_csp->cs_dels_count_aftr)[i];
     }
     std::size_t total_differences_count_befr[16] = {0};
     for (std::uint32_t i = 0; i < in_args.threadCount; i++) {
         for (std::uint32_t j = 0; j < 16; j++) {
             total_differences_count_befr[j] += (dcs_csp->cs_differences_count_befr)[i*16 + j];
+        }
+    }
+    std::size_t total_differences_count_aftr[16] = {0};
+    for (std::uint32_t i = 0; i < in_args.threadCount; i++) {
+        for (std::uint32_t j = 0; j < 16; j++) {
+            total_differences_count_aftr[j] += (dcs_csp->cs_differences_count_aftr)[i*16 + j];
         }
     }
     
@@ -98,6 +118,14 @@ void display_compression_stats(InputArgs& in_args, CompressionStatistics * dcs_c
     (((double) total_inss_count_befr)/((double) total_edit_count_befr))*100);
     fprintf(stderr, "total_dels_count_befr        : %lu, %.2lf.\n", total_dels_count_befr,
     (((double) total_dels_count_befr)/((double) total_edit_count_befr))*100);
+    fprintf(stderr, "total_edit_count_aftr        : %lu, %.2lf.\n", total_edit_count_aftr,
+    (((double) total_edit_count_aftr)/((double) dcs_csp->cs_pe_mapped_count))*100);
+    fprintf(stderr, "total_subs_count_aftr        : %lu, %.2lf.\n", total_subs_count_aftr,
+    (((double) total_subs_count_aftr)/((double) total_edit_count_aftr))*100);
+    fprintf(stderr, "total_inss_count_aftr        : %lu, %.2lf.\n", total_inss_count_aftr,
+    (((double) total_inss_count_aftr)/((double) total_edit_count_aftr))*100);
+    fprintf(stderr, "total_dels_count_aftr        : %lu, %.2lf.\n", total_dels_count_aftr,
+    (((double) total_dels_count_aftr)/((double) total_edit_count_aftr))*100);
     fprintf(stderr, "total_fwd_locns_count        : %lu, %.2lf.\n", total_fwd_locns_count,
     (((double) total_fwd_locns_count)/((double) dcs_csp->cs_pe_mapped_count))*200);
     fprintf(stderr, "total_bwd_locns_count        : %lu, %.2lf.\n", total_bwd_locns_count,
@@ -122,6 +150,10 @@ void display_compression_stats(InputArgs& in_args, CompressionStatistics * dcs_c
     for (std::uint32_t j = 0; j < 16; j++) {
         fprintf(stdout, "total_differences_count_bef[%2u] : %lu, %.2lf.\n", j, total_differences_count_befr[j],
         (((double) total_differences_count_befr[j])/((double) dcs_csp->cs_pe_mapped_count))*100);
+    }
+    for (std::uint32_t j = 0; j < 16; j++) {
+        fprintf(stdout, "total_differences_count_aft[%2u] : %lu, %.2lf.\n", j, total_differences_count_aftr[j],
+        (((double) total_differences_count_aftr[j])/((double) dcs_csp->cs_pe_mapped_count))*100);
     }
 }
 
@@ -234,13 +266,13 @@ void populate_compaction_data(CompressArgsForThread * pcd_tap, int* pcd_diff_loc
         for (int i = 1; i <= pcd_diff_count; i++) {
             (pcd_tap->caft_fwd_diff_posns).push_back((std::uint8_t) (pcd_diff_locs[i] - pcd_diff_locs[i-1]));
             (pcd_tap->caft_fwd_diff_values).push_back((std::uint8_t) pcd_diff_vals[i]);
-            (pcd_tap->csp->cs_edit_count_befr)[threadID] += 1;
+            (pcd_tap->csp->cs_edit_count_aftr)[threadID] += 1;
             if (pcd_diff_vals[i] < 4) {
-                (pcd_tap->csp->cs_subs_count_befr)[threadID] += 1;
+                (pcd_tap->csp->cs_subs_count_aftr)[threadID] += 1;
             } else if (pcd_diff_vals[i] < 9) {
-                (pcd_tap->csp->cs_inss_count_befr)[threadID] += 1;
+                (pcd_tap->csp->cs_inss_count_aftr)[threadID] += 1;
             } else {
-                (pcd_tap->csp->cs_dels_count_befr)[threadID] += 1;
+                (pcd_tap->csp->cs_dels_count_aftr)[threadID] += 1;
             }
         }
         pcd_diff_locs[0] = pcd_diff_count;
@@ -269,13 +301,13 @@ void populate_compaction_data(CompressArgsForThread * pcd_tap, int* pcd_diff_loc
         for (int i = 1; i <= pcd_diff_count; i++) {
             (pcd_tap->caft_bwd_diff_posns).push_back((std::uint8_t) (pcd_diff_locs[i] - pcd_diff_locs[i-1]));
             (pcd_tap->caft_bwd_diff_values).push_back((std::uint8_t) pcd_diff_vals[i]);
-            (pcd_tap->csp->cs_edit_count_befr)[threadID] += 1;
+            (pcd_tap->csp->cs_edit_count_aftr)[threadID] += 1;
             if (pcd_diff_vals[i] < 4) {
-                (pcd_tap->csp->cs_subs_count_befr)[threadID] += 1;
+                (pcd_tap->csp->cs_subs_count_aftr)[threadID] += 1;
             } else if (pcd_diff_vals[i] < 9) {
-                (pcd_tap->csp->cs_inss_count_befr)[threadID] += 1;
+                (pcd_tap->csp->cs_inss_count_aftr)[threadID] += 1;
             } else {
-                (pcd_tap->csp->cs_dels_count_befr)[threadID] += 1;
+                (pcd_tap->csp->cs_dels_count_aftr)[threadID] += 1;
             }
         }
         pcd_diff_locs[0] = pcd_diff_count;
@@ -302,10 +334,36 @@ void *compactReads2Thread(void *arg) {
     (tap->caft_fwd_diff_values).reserve(indices_per_thread * 1.1);
     (tap->caft_bwd_diff_values).reserve(indices_per_thread * 1.1);
     
+    std::uint32_t local_diffs_fwd[READ_LEN_MAX*3][EDIT_DISTANCE][10];
+    memset(local_diffs_fwd, 0, READ_LEN_MAX*3*EDIT_DISTANCE*10*sizeof(std::uint32_t));
+    std::uint8_t  local_bases_fwd[READ_LEN_MAX*3][EDIT_DISTANCE];
+    memset(local_bases_fwd, 254, READ_LEN_MAX*3*EDIT_DISTANCE*sizeof(std::uint8_t));
+    std::uint32_t local_count_fwd[READ_LEN_MAX*3][EDIT_DISTANCE];
+    memset(local_count_fwd, 0, READ_LEN_MAX*3*EDIT_DISTANCE*sizeof(std::uint32_t));
+    std::uint32_t local_usage_fwd[READ_LEN_MAX*3];
+    memset(local_usage_fwd, 0, READ_LEN_MAX*3*sizeof(std::uint32_t));
+    std::uint32_t curr_ref_buf_pos_fwd = 0;
+    std::uint32_t temp_ref_buf_pos_fwd = 0;
+    int temp_diff_cnt_fwd = 0;
+    int prev_diff_loc_fwd = -1;
+    
+    std::uint32_t local_diffs_bwd[READ_LEN_MAX*3][EDIT_DISTANCE][10];
+    memset(local_diffs_bwd, 0, READ_LEN_MAX*3*EDIT_DISTANCE*10*sizeof(std::uint32_t));
+    std::uint8_t  local_bases_bwd[READ_LEN_MAX*3][EDIT_DISTANCE];
+    memset(local_bases_bwd, 254, READ_LEN_MAX*3*EDIT_DISTANCE*sizeof(std::uint8_t));
+    std::uint32_t local_count_bwd[READ_LEN_MAX*3][EDIT_DISTANCE];
+    memset(local_count_bwd, 0, READ_LEN_MAX*3*EDIT_DISTANCE*sizeof(std::uint32_t));
+    std::uint32_t local_usage_bwd[READ_LEN_MAX*3];
+    memset(local_usage_bwd, 0, READ_LEN_MAX*3*sizeof(std::uint32_t));
+    std::uint32_t curr_ref_buf_pos_bwd = 0;
+    std::uint32_t temp_ref_buf_pos_bwd = 0;
+    int temp_diff_cnt_bwd = 0;
+    int prev_diff_loc_bwd = -1;
+    
     int k, z, my_diffs;
     char cigar[READ_LEN_MAX*2];
-    int diff_vals[32];
-    int diff_locs[32];
+    int diff_vals[32], aftr_diff_vals[32];
+    int diff_locs[32], aftr_diff_locs[32];
     MappedRead * m1 = NULL, * m2 = NULL;
     Read r1, r2;
     std::uint32_t fwd_prev_locn = 0, bwd_prev_locn = 0;
@@ -372,9 +430,73 @@ void *compactReads2Thread(void *arg) {
                 }
                 (tap->csp->cs_differences_count_befr)[threadID*16 + diff_locs[0]]++;
         }
+        
+        aftr_diff_locs[0] = diff_locs[0];
+        for (int i = 1; i <= diff_locs[0]; i++) {
+            aftr_diff_locs[i] = diff_locs[i];
+            aftr_diff_vals[i] = diff_vals[i];
+            (tap->csp->cs_edit_count_befr)[threadID] += 1;
+            if (diff_vals[i] < 4) {
+                (tap->csp->cs_subs_count_befr)[threadID] += 1;
+            } else if (diff_vals[i] < 9) {
+                (tap->csp->cs_inss_count_befr)[threadID] += 1;
+            } else {
+                (tap->csp->cs_dels_count_befr)[threadID] += 1;
+            }
+        }
+        if (tap->caft_in_args->updateReference) {
+            temp_diff_cnt_fwd = 0;
+            prev_diff_loc_fwd = -1;
+            if (fwd_prev_locn) {
+                for (std::uint32_t i = fwd_prev_locn; i < m1->location; i++) {
+                    temp_ref_buf_pos_fwd = i%(READ_LEN_MAX*3);
+//                     assert (temp_ref_buf_pos_fwd < (READ_LEN_MAX*3));
+//                     assert (local_usage_fwd[temp_ref_buf_pos_fwd] < EDIT_DISTANCE);
+                    for (std::uint32_t j = 0; j < local_usage_fwd[temp_ref_buf_pos_fwd]; j++) {
+                        local_bases_fwd[temp_ref_buf_pos_fwd][j] = 254;
+                        local_count_fwd[temp_ref_buf_pos_fwd][j] = 0;
+                        for (uint32_t k = 0; k < 10; k++) {
+                            local_diffs_fwd[temp_ref_buf_pos_fwd][j][k] = 0;
+                        }
+                    }
+                    local_usage_fwd[temp_ref_buf_pos_fwd] = 0;
+                }
+            }
+            
+            curr_ref_buf_pos_fwd = m1->location % (READ_LEN_MAX*3);
+            aftr_diff_locs[0] = 0;
+            
+            for (int i = 1; i <= diff_locs[0]; i++) {
+                temp_ref_buf_pos_fwd = (curr_ref_buf_pos_fwd + diff_locs[i])%(READ_LEN_MAX*3);
+//                 assert (temp_ref_buf_pos_fwd < (READ_LEN_MAX*3));
+                if (diff_locs[i] == prev_diff_loc_fwd) {
+                    temp_diff_cnt_fwd++;
+                } else {
+                    prev_diff_loc_fwd = diff_locs[i];
+                    temp_diff_cnt_fwd = 1;
+                }
+                local_usage_fwd[temp_ref_buf_pos_fwd] = (std::uint32_t) temp_diff_cnt_fwd;
+                
+                if (local_bases_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1] == ((std::uint8_t) diff_vals[i])) {
+                    local_diffs_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1][diff_vals[i]] += 1;
+                    local_count_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1] += 1;
+                } else {
+                    aftr_diff_locs[0] += 1;
+                    aftr_diff_locs[i] = diff_locs[i];
+                    aftr_diff_vals[i] = diff_vals[i];
+                    local_diffs_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1][diff_vals[i]] += 1;
+                    if (local_diffs_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1][diff_vals[i]] > local_count_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1]) {
+                        local_count_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1] = local_diffs_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1][diff_vals[i]];
+                        local_bases_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1] = ((std::uint8_t) diff_vals[i]);
+                    }
+                }
+            }
+        }
+        
         tap->caft_is_fwd_read = true;
         tap->caft_locn_diff = m1->location - fwd_prev_locn;
-        populate_compaction_data(tap, diff_locs, diff_vals);
+        (tap->csp->cs_differences_count_aftr)[threadID*16 + aftr_diff_locs[0]]++;
+        populate_compaction_data(tap, aftr_diff_locs, aftr_diff_vals);
         fwd_prev_locn = m1->location;
         if (diff_locs[0] > EDIT_DISTANCE) {
             std::cerr << "Fwd ID : " << m1->id << ", " << diff_locs[0] << std::endl;
@@ -440,9 +562,73 @@ void *compactReads2Thread(void *arg) {
                 }
                 (tap->csp->cs_differences_count_befr)[threadID*16 + diff_locs[0]]++;
         }
+        
+        aftr_diff_locs[0] = diff_locs[0];
+        for (int i = 1; i <= diff_locs[0]; i++) {
+            aftr_diff_locs[i] = diff_locs[i];
+            aftr_diff_vals[i] = diff_vals[i];
+            (tap->csp->cs_edit_count_befr)[threadID] += 1;
+            if (diff_vals[i] < 4) {
+                (tap->csp->cs_subs_count_befr)[threadID] += 1;
+            } else if (diff_vals[i] < 9) {
+                (tap->csp->cs_inss_count_befr)[threadID] += 1;
+            } else {
+                (tap->csp->cs_dels_count_befr)[threadID] += 1;
+            }
+        }
+        if (tap->caft_in_args->updateReference) {
+            temp_diff_cnt_bwd = 0;
+            prev_diff_loc_bwd = -1;
+            if (bwd_prev_locn) {
+                for (std::uint32_t i = bwd_prev_locn; i < m1->location; i++) {
+                    temp_ref_buf_pos_bwd = i%(READ_LEN_MAX*3);
+//                     assert (temp_ref_buf_pos_bwd < (READ_LEN_MAX*3));
+//                     assert (local_usage_bwd[temp_ref_buf_pos_bwd] < EDIT_DISTANCE);
+                    for (std::uint32_t j = 0; j < local_usage_bwd[temp_ref_buf_pos_bwd]; j++) {
+                        local_bases_bwd[temp_ref_buf_pos_bwd][j] = 254;
+                        local_count_bwd[temp_ref_buf_pos_bwd][j] = 0;
+                        for (uint32_t k = 0; k < 10; k++) {
+                            local_diffs_bwd[temp_ref_buf_pos_bwd][j][k] = 0;
+                        }
+                    }
+                    local_usage_bwd[temp_ref_buf_pos_bwd] = 0;
+                }
+            }
+            
+            curr_ref_buf_pos_bwd = m1->location % (READ_LEN_MAX*3);
+            aftr_diff_locs[0] = 0;
+            
+            for (int i = 1; i <= diff_locs[0]; i++) {
+                temp_ref_buf_pos_bwd = (curr_ref_buf_pos_bwd + diff_locs[i])%(READ_LEN_MAX*3);
+//                 assert (temp_ref_buf_pos_bwd < (READ_LEN_MAX*3));
+                if (diff_locs[i] == prev_diff_loc_bwd) {
+                    temp_diff_cnt_bwd++;
+                } else {
+                    prev_diff_loc_bwd = diff_locs[i];
+                    temp_diff_cnt_bwd = 1;
+                }
+                local_usage_bwd[temp_ref_buf_pos_bwd] = (std::uint32_t) temp_diff_cnt_bwd;
+                
+                if (local_bases_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1] == ((std::uint8_t) diff_vals[i])) {
+                    local_diffs_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1][diff_vals[i]] += 1;
+                    local_count_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1] += 1;
+                } else {
+                    aftr_diff_locs[0] += 1;
+                    aftr_diff_locs[i] = diff_locs[i];
+                    aftr_diff_vals[i] = diff_vals[i];
+                    local_diffs_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1][diff_vals[i]] += 1;
+                    if (local_diffs_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1][diff_vals[i]] > local_count_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1]) {
+                        local_count_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1] = local_diffs_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1][diff_vals[i]];
+                        local_bases_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1] = ((std::uint8_t) diff_vals[i]);
+                    }
+                }
+            }
+        }
+        
         tap->caft_is_fwd_read = false;
         tap->caft_locn_diff = m2->location - bwd_prev_locn;
-        populate_compaction_data(tap, diff_locs, diff_vals);
+        (tap->csp->cs_differences_count_aftr)[threadID*16 + aftr_diff_locs[0]]++;
+        populate_compaction_data(tap, aftr_diff_locs, aftr_diff_vals);
         bwd_prev_locn = m2->location;
         if (diff_locs[0] > EDIT_DISTANCE) {
             std::cerr << "Bwd ID : " << m2->id << ", " << diff_locs[0] << std::endl;
@@ -1137,6 +1323,15 @@ int perform_compaction(InputArgs& in_args, CompressionDataStructures& comDS) {
     }
     assert (finished_thread_num == in_args.threadCount);
 	
+	num_write = fwrite(&(in_args.updateReference), 1, sizeof(std::uint32_t), cpct_file_fp);
+	if (num_write) {
+	    //std::cout << "Wrote update reference to " << cpct_file_name << std::endl;
+	    //std::cout << "Bytes written : " << num_write << std::endl;
+	} else {
+	    std::cerr << "Error writing to " << cpct_file_name << std::endl;
+	    assert (0);
+	}
+	comDS.totalBytes += num_write;
 	num_write = fwrite(&(in_args.threadCount), 1, sizeof(std::uint32_t), cpct_file_fp);
 	if (num_write) {
 	    //std::cout << "Wrote thread count to " << cpct_file_name << std::endl;

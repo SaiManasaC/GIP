@@ -13,6 +13,7 @@ int parse_args(int argc, char* argv[], InputArgs& in_args){
   const char* f3_arg = "com_file_name";
   const char* tc_arg = "thread_count";
   const char* sf_arg = "write_sep_files";
+  const char* ur_arg = "update_reference";
   //const char* l1_arg = "rd1_length";
   //const char* l2_arg = "rd2_length";
   //const char* rl_arg = "rd_length";
@@ -49,6 +50,9 @@ int parse_args(int argc, char* argv[], InputArgs& in_args){
 
   cmd.defineOption(sf_arg, "Write and compress files separately. Applies only for compression");
   //cmd.defineOptionAlternative(sf_arg, "");
+
+  cmd.defineOption(ur_arg, "Update reference sequence for better compression. Applies only for compression");
+  //cmd.defineOptionAlternative(ur_arg, "");
 
 /*
   cmd.defineOption(l1_arg, "Read-1 length",
@@ -119,6 +123,10 @@ int parse_args(int argc, char* argv[], InputArgs& in_args){
       in_args.writeSepFiles = true;
   }
 
+  if(cmd.foundOption(ur_arg)) {
+      in_args.updateReference = 1;
+  }
+
 /*
   if(cmd.foundOption(l1_arg)) {
       in_args.rd1Length = (std::uint32_t) std::stoi(cmd.optionValue(l1_arg));
@@ -155,6 +163,9 @@ int parse_args(int argc, char* argv[], InputArgs& in_args){
   }
   if (in_args.writeSepFiles) {
     std::cerr << "Write sep files is : " << "enabled"           << std::endl;
+  }
+  if (in_args.updateReference) {
+    std::cerr << "Update ref seq is  : " << "enabled"           << std::endl;
   }
   //std::cerr << "Rd1 Length         : " << in_args.rd1Length   << std::endl;
   //std::cerr << "Rd2 Length         : " << in_args.rd2Length   << std::endl;

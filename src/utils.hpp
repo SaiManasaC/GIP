@@ -133,6 +133,7 @@ struct InputArgs{
     std::string rd2FileName;
     std::string comFileName;
     bool writeSepFiles;
+    std::uint32_t updateReference;
 
     //Need below only for compression
     std::uint32_t threadCount; //Size is recorded
@@ -150,6 +151,7 @@ struct InputArgs{
         rdLength    = 0;
         //kmerLength = 0;
         writeSepFiles = false;
+        updateReference = 0;
     }
 };
 

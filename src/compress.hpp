@@ -30,6 +30,12 @@ struct CompressionStatistics{
     
     //Only two-mapped reads
     std::vector<std::size_t> cs_differences_count_befr; //threadCount * 16
+    std::vector<std::size_t> cs_differences_count_aftr; //threadCount * 16
+
+    std::vector<std::size_t> cs_edit_count_aftr; //threadCount
+    std::vector<std::size_t> cs_subs_count_aftr; //threadCount
+    std::vector<std::size_t> cs_inss_count_aftr; //threadCount
+    std::vector<std::size_t> cs_dels_count_aftr; //threadCount
 };
 
 struct CompressArgsForThread{
