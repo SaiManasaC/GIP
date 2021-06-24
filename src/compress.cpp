@@ -449,13 +449,13 @@ void *compactReads2Thread(void *arg) {
             prev_diff_loc_fwd = -1;
             if (fwd_prev_locn) {
                 for (std::uint32_t i = fwd_prev_locn; i < m1->location; i++) {
-                    temp_ref_buf_pos_fwd = i%(READ_LEN_MAX*3);
+                    temp_ref_buf_pos_fwd = i % (READ_LEN_MAX*3);
 //                     assert (temp_ref_buf_pos_fwd < (READ_LEN_MAX*3));
 //                     assert (local_usage_fwd[temp_ref_buf_pos_fwd] < EDIT_DISTANCE);
                     for (std::uint32_t j = 0; j < local_usage_fwd[temp_ref_buf_pos_fwd]; j++) {
                         local_bases_fwd[temp_ref_buf_pos_fwd][j] = 254;
                         local_count_fwd[temp_ref_buf_pos_fwd][j] = 0;
-                        for (uint32_t k = 0; k < 10; k++) {
+                        for (std::uint32_t k = 0; k < 10; k++) {
                             local_diffs_fwd[temp_ref_buf_pos_fwd][j][k] = 0;
                         }
                     }
@@ -467,7 +467,7 @@ void *compactReads2Thread(void *arg) {
             aftr_diff_locs[0] = 0;
             
             for (int i = 1; i <= diff_locs[0]; i++) {
-                temp_ref_buf_pos_fwd = (curr_ref_buf_pos_fwd + diff_locs[i])%(READ_LEN_MAX*3);
+                temp_ref_buf_pos_fwd = (curr_ref_buf_pos_fwd + diff_locs[i]) % (READ_LEN_MAX*3);
 //                 assert (temp_ref_buf_pos_fwd < (READ_LEN_MAX*3));
                 if (diff_locs[i] == prev_diff_loc_fwd) {
                     temp_diff_cnt_fwd++;
@@ -482,8 +482,8 @@ void *compactReads2Thread(void *arg) {
                     local_count_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1] += 1;
                 } else {
                     aftr_diff_locs[0] += 1;
-                    aftr_diff_locs[i] = diff_locs[i];
-                    aftr_diff_vals[i] = diff_vals[i];
+                    aftr_diff_locs[aftr_diff_locs[0]] = diff_locs[i];
+                    aftr_diff_vals[aftr_diff_locs[0]] = diff_vals[i];
                     local_diffs_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1][diff_vals[i]] += 1;
                     if (local_diffs_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1][diff_vals[i]] > local_count_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1]) {
                         local_count_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1] = local_diffs_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1][diff_vals[i]];
@@ -580,14 +580,14 @@ void *compactReads2Thread(void *arg) {
             temp_diff_cnt_bwd = 0;
             prev_diff_loc_bwd = -1;
             if (bwd_prev_locn) {
-                for (std::uint32_t i = bwd_prev_locn; i < m1->location; i++) {
-                    temp_ref_buf_pos_bwd = i%(READ_LEN_MAX*3);
+                for (std::uint32_t i = bwd_prev_locn; i < m2->location; i++) {
+                    temp_ref_buf_pos_bwd = i % (READ_LEN_MAX*3);
 //                     assert (temp_ref_buf_pos_bwd < (READ_LEN_MAX*3));
 //                     assert (local_usage_bwd[temp_ref_buf_pos_bwd] < EDIT_DISTANCE);
                     for (std::uint32_t j = 0; j < local_usage_bwd[temp_ref_buf_pos_bwd]; j++) {
                         local_bases_bwd[temp_ref_buf_pos_bwd][j] = 254;
                         local_count_bwd[temp_ref_buf_pos_bwd][j] = 0;
-                        for (uint32_t k = 0; k < 10; k++) {
+                        for (std::uint32_t k = 0; k < 10; k++) {
                             local_diffs_bwd[temp_ref_buf_pos_bwd][j][k] = 0;
                         }
                     }
@@ -595,11 +595,11 @@ void *compactReads2Thread(void *arg) {
                 }
             }
             
-            curr_ref_buf_pos_bwd = m1->location % (READ_LEN_MAX*3);
+            curr_ref_buf_pos_bwd = m2->location % (READ_LEN_MAX*3);
             aftr_diff_locs[0] = 0;
             
             for (int i = 1; i <= diff_locs[0]; i++) {
-                temp_ref_buf_pos_bwd = (curr_ref_buf_pos_bwd + diff_locs[i])%(READ_LEN_MAX*3);
+                temp_ref_buf_pos_bwd = (curr_ref_buf_pos_bwd + diff_locs[i]) % (READ_LEN_MAX*3);
 //                 assert (temp_ref_buf_pos_bwd < (READ_LEN_MAX*3));
                 if (diff_locs[i] == prev_diff_loc_bwd) {
                     temp_diff_cnt_bwd++;
@@ -614,8 +614,8 @@ void *compactReads2Thread(void *arg) {
                     local_count_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1] += 1;
                 } else {
                     aftr_diff_locs[0] += 1;
-                    aftr_diff_locs[i] = diff_locs[i];
-                    aftr_diff_vals[i] = diff_vals[i];
+                    aftr_diff_locs[aftr_diff_locs[0]] = diff_locs[i];
+                    aftr_diff_vals[aftr_diff_locs[0]] = diff_vals[i];
                     local_diffs_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1][diff_vals[i]] += 1;
                     if (local_diffs_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1][diff_vals[i]] > local_count_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1]) {
                         local_count_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1] = local_diffs_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1][diff_vals[i]];
