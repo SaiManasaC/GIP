@@ -178,6 +178,8 @@ struct CompressionDataStructures{
         ref_bases = NULL;
         totalTime = 0.0;
         totalBytes = 0;
+        unmBytes = 0;
+        peBytes = 0;
     }
 };
 

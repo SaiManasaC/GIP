@@ -485,7 +485,7 @@ void *compactReads2Thread(void *arg) {
                     aftr_diff_locs[aftr_diff_locs[0]] = diff_locs[i];
                     aftr_diff_vals[aftr_diff_locs[0]] = diff_vals[i];
                     local_diffs_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1][diff_vals[i]] += 1;
-                    if (local_diffs_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1][diff_vals[i]] > local_count_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1]) {
+                    if (local_diffs_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1][diff_vals[i]] > (local_count_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1])) {
                         local_count_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1] = local_diffs_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1][diff_vals[i]];
                         local_bases_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1] = ((std::uint8_t) diff_vals[i]);
                     }
@@ -617,7 +617,7 @@ void *compactReads2Thread(void *arg) {
                     aftr_diff_locs[aftr_diff_locs[0]] = diff_locs[i];
                     aftr_diff_vals[aftr_diff_locs[0]] = diff_vals[i];
                     local_diffs_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1][diff_vals[i]] += 1;
-                    if (local_diffs_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1][diff_vals[i]] > local_count_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1]) {
+                    if (local_diffs_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1][diff_vals[i]] > (local_count_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1])) {
                         local_count_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1] = local_diffs_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1][diff_vals[i]];
                         local_bases_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1] = ((std::uint8_t) diff_vals[i]);
                     }
