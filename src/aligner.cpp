@@ -98,7 +98,12 @@ std::queue<UnmappedRead>& pr_u_read_queue, AlignArgsForThread * pr_tap) {
         (pr_tap->aaft_com_ds->unmapped_reads).push_back(pr_unm_read);
     }
 }
-
+/* Parallel specialized alignment algorithm
+generate an alignment to minimize : D1 + D2 + S12
+D1 : Differences between first read and reference genome, D2 : 
+Differences between second read and reference genome, and S12 : 
+Separation between alignment locations of two reads.
+*/
 void *alignReads1Thread(void *arg) {
     struct AlignArgsForThread * tap;
     tap = (struct AlignArgsForThread *) arg;
