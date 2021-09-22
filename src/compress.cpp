@@ -313,7 +313,12 @@ void populate_compaction_data(CompressArgsForThread * pcd_tap, int* pcd_diff_loc
         pcd_diff_locs[0] = pcd_diff_count;
     }
 }
-
+/* For every forward two aligned read and every reverse two aligned read append (to the lists) : 
+(data stream 1)relative start location – location wrt. previous read 
+(data stream 2)number of differences (between read and reference genome) – one byte per count
+(data stream 3)relative difference positions – one byte per difference position 
+(data stream 4)differing bases – 2 bits to capture substitution to N (1 possibility), deletion (4 possibilities), 
+insertion of N (1 possibility), insertion of regular base (4 possibilities) */
 void *compactReads2Thread(void *arg) {
     struct CompressArgsForThread * tap;
     tap = (struct CompressArgsForThread *) arg;
@@ -686,7 +691,9 @@ void *compactReads2Thread(void *arg) {
     
     return NULL;
 }
-
+/* Create a list of tuples – (location of forward read, location of reverse read, position 
+of forward read)
+ */
 void *compactReads3Thread(void *arg) {
     struct CompressArgsForThread * tap;
     tap = (struct CompressArgsForThread *) arg;
@@ -715,7 +722,8 @@ void *compactReads3Thread(void *arg) {
     }
     return NULL;
 }
-
+/* (data stream 5)locations of other ends – for every reverse read capture relative 
+location of its forward read */
 void *compactReads4Thread(void *arg) {
     struct CompressArgsForThread * tap;
     tap = (struct CompressArgsForThread *) arg;
@@ -800,7 +808,7 @@ void *compactReads4Thread(void *arg) {
     (tap->csp->cs_pe_rel_locns_count)[tap->caft_thread_id] += tap->caft_pe_rel_locns.size();
     return NULL;
 }
-
+/* write single end reads*/
 void write_se_data(FILE * wsd_fp, CompressArgsForThread * wsd_tap) {
     std::size_t num_write;
 	std::size_t my_size;
