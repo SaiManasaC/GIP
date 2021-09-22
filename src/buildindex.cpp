@@ -271,6 +271,11 @@ void *constructIndex3Thread(void *arg) {
 }
 */
 
+/*Parallel construction of two level kmer index
+Decompose reference genome into blocks among available threads
+Each thread – generates a list of tuples (kmer,location)
+Sort list across all threads */
+
 int construct_index(InputArgs& in_args, CompressionDataStructures& comDS) {
     std::uint32_t hash_table_size = comDS.ref_length - KMER_LENGTH + 1;
     int max_hash_value = ((int) std::pow(4, KMER_LENGTH)) - 1;
