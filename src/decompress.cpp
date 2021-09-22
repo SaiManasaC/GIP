@@ -195,7 +195,7 @@ int parse_reference_decom(InputArgs& in_args, DecompressionDataStructures& decom
     
     return 0;
 }
-
+//process unmapped reads (0-align and 1-align)
 int process_unmapped_reads(InputArgs& in_args, DecompressionDataStructures& decomDS) {
     std::size_t num_read, my_size;
 	num_read = fread(&(my_size), 1, sizeof(std::size_t), *(decomDS.ip_fp));
@@ -254,7 +254,7 @@ int process_unmapped_reads(InputArgs& in_args, DecompressionDataStructures& deco
 */
     return 0;
 }
-
+//write unmapped data
 int write_unm_data(InputArgs& in_args, DecompressionDataStructures& decomDS) {
     std::vector<std::uint8_t>().swap(decomDS.unm_bytes); //Free memory
     std::size_t num_write;
@@ -330,7 +330,7 @@ void *decompactReads0Thread(void *arg) {
     
     return NULL;
 }
-
+//write to rd2 file (fastq 2 file)
 int write_bwd_data(InputArgs& in_args, DecompressionDataStructures& decomDS) {
 /*
 	std::uint8_t my_bases[READ_LEN_MAX], my_rc_bases[READ_LEN_MAX];
@@ -448,7 +448,7 @@ void *decompactReads3Thread(void *arg) {
     
     return NULL;
 }
-
+//write to rd1 file (fastq 1 file)
 void write_fwd_data(DecompressArgsForThread * wfd_tap) {
 	std::size_t num_write;
 	FILE * wfd_fp = *(wfd_tap[0].daft_decom_ds->o1_fp);
@@ -481,7 +481,7 @@ void write_fwd_data(DecompressArgsForThread * wfd_tap) {
         std::vector<char>().swap(wfd_tap[i].daft_fwd_reads); //Free memory
     }
 }
-
+//read single end reads
 void read_se_data(DecompressArgsForThread * rsd_tap) {
     std::size_t num_read, my_size;
 	FILE * rsd_fp = *(rsd_tap[0].daft_decom_ds->ip_fp);
@@ -646,7 +646,7 @@ void read_se_data(DecompressArgsForThread * rsd_tap) {
 	    (rsd_tap->dsp->ds_bwd_diff_values_count)[i] += rsd_tap[i].daft_bwd_diff_values.size();
     }
 }
-
+//read paired end data (using relative locations of other ends)
 void read_pe_data(DecompressArgsForThread * rpd_tap) {
     std::size_t num_read, my_size;
 	FILE * rpd_fp = *(rpd_tap[0].daft_decom_ds->ip_fp);
@@ -691,7 +691,7 @@ void read_pe_data(DecompressArgsForThread * rpd_tap) {
 	    (rpd_tap->dsp->ds_pe_rel_posns_count)[i] += rpd_tap[i].daft_pe_rel_posns.size();
     }
 }
-
+//decode list of starting locations
 void *decompactReads1Thread(void *arg) {
     struct DecompressArgsForThread * tap;
     tap = (struct DecompressArgsForThread *) arg;
@@ -829,7 +829,10 @@ void *decompactReads1Thread(void *arg) {
     
     return NULL;
 }
-
+/* Populate list of forward aligned reads and reverse 
+aligned reads
+Identify and update differing bases
+Compute reverse complement */
 void *decompactReads2Thread(void *arg) {
     struct DecompressArgsForThread * tap;
     tap = (struct DecompressArgsForThread *) arg;
