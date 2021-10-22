@@ -1032,14 +1032,14 @@ void *decompactReads1Thread(void *arg) {
 
 
 
-    assert(loc_idx == tap->daft_fwd_locns.size());
-    std::vector<std::uint8_t>().swap(tap->daft_fwd_locns); //Free memory
-    assert(dct_idx == tap->daft_fwd_diff_counts.size());
-    std::vector<std::uint8_t>().swap(tap->daft_fwd_diff_counts); //Free memory
-    assert(dpv_idx == tap->daft_fwd_diff_posns.size());
-    std::vector<std::uint8_t>().swap(tap->daft_fwd_diff_posns); //Free memory
-    std::vector<std::uint8_t>().swap(tap->daft_fwd_diff_values); //Free memory
-    assert(fwd_idx == tap->daft_fwd_reads.size());
+    //assert(loc_idx == tap->daft_fwd_locns.size());
+    //std::vector<std::uint8_t>().swap(tap->daft_fwd_locns); //Free memory
+    //assert(dct_idx == tap->daft_fwd_diff_counts.size());
+    //std::vector<std::uint8_t>().swap(tap->daft_fwd_diff_counts); //Free memory
+    //assert(dpv_idx == tap->daft_fwd_diff_posns.size());
+    //std::vector<std::uint8_t>().swap(tap->daft_fwd_diff_posns); //Free memory
+    //std::vector<std::uint8_t>().swap(tap->daft_fwd_diff_values); //Free memory
+    //assert(fwd_idx == tap->daft_fwd_reads.size());
 
     return NULL;
 }
@@ -1560,17 +1560,17 @@ void *decompactReads2Thread(void *arg) {
         }
 
     }
-    assert(loc_idx == tap->daft_bwd_locns.size());
-    std::vector<std::uint8_t>().swap(tap->daft_bwd_locns); //Free memory
-    assert(dct_idx == tap->daft_bwd_diff_counts.size());
-    std::vector<std::uint8_t>().swap(tap->daft_bwd_diff_counts); //Free memory
-    assert(dpv_idx == tap->daft_bwd_diff_posns.size());
-    std::vector<std::uint8_t>().swap(tap->daft_bwd_diff_posns); //Free memory
-    std::vector<std::uint8_t>().swap(tap->daft_bwd_diff_values); //Free memory
-    assert(pel_idx == tap->daft_pe_rel_locns.size());
-    std::vector<std::uint8_t>().swap(tap->daft_pe_rel_locns); //Free memory
-    assert(pep_idx == tap->daft_pe_rel_posns.size());
-    std::vector<std::uint8_t>().swap(tap->daft_pe_rel_posns); //Free memory
+    //assert(loc_idx == tap->daft_bwd_locns.size());
+    //std::vector<std::uint8_t>().swap(tap->daft_bwd_locns); //Free memory
+    //assert(dct_idx == tap->daft_bwd_diff_counts.size());
+    //std::vector<std::uint8_t>().swap(tap->daft_bwd_diff_counts); //Free memory
+    //assert(dpv_idx == tap->daft_bwd_diff_posns.size());
+    //std::vector<std::uint8_t>().swap(tap->daft_bwd_diff_posns); //Free memory
+    //std::vector<std::uint8_t>().swap(tap->daft_bwd_diff_values); //Free memory
+    //assert(pel_idx == tap->daft_pe_rel_locns.size());
+    //std::vector<std::uint8_t>().swap(tap->daft_pe_rel_locns); //Free memory
+    //assert(pep_idx == tap->daft_pe_rel_posns.size());
+    //std::vector<std::uint8_t>().swap(tap->daft_pe_rel_posns); //Free memory
 
     return NULL;
 }
