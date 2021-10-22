@@ -704,9 +704,7 @@ void *decompactReads1Thread(void *arg) {
     //std::cout << tap->daft_thread_id << " : " << index_start << " : " << index_end << std::endl;
 
     tap->daft_fwd_reads.resize(((std::size_t)(index_end - index_start + 1)) * (tap->daft_in_args->rdLength + 3));
-    std::uint32_t loc_idx = 0, prev_locn = 0, curr_locn = 0;
-    std::uint32_t dct_idx = 0, dpv_idx = 0;
-    std::size_t fwd_idx = 0;
+    
 
     tap->daft_fwd_reads.resize(((std::size_t)(index_end - index_start + 1)) * (tap->daft_in_args->rdLength + 3));
     std::uint32_t loc_idx = 0, prev_locn = 0, curr_locn = 0;
@@ -724,10 +722,10 @@ void *decompactReads1Thread(void *arg) {
     int prev_diff_loc_fwd = -1;
     std::uint32_t temp_ref_buf_pos_fwd = 0;
 
-    int aftr_diff_locs[32];
-    int aftr_diff_vals[32];
-    int diff_locs[32];
-    int diff_vals[32];
+    std::uint32_t aftr_diff_locs[32];
+    std::uint32_t aftr_diff_vals[32];
+    std::uint32_t diff_locs[32];
+    std::uint32_t diff_vals[32];
 
     //char my_bases_1[READ_LEN_MAX + EDIT_DISTANCE + 1]; //To account for indels
     //char my_bases_2[READ_LEN_MAX];
@@ -796,7 +794,7 @@ void *decompactReads1Thread(void *arg) {
                 //dpv_idx += tap->daft_fwd_diff_counts[dct_idx];
                 //std::memcpy(tap->daft_fwd_reads.data() + fwd_idx, my_bases_2, tap->daft_in_args->rdLength);
                 //fwd_idx += tap->daft_in_args->rdLength;
-                std::uint32_t ref_idx = 0, mod_idx = 0, temp_mod_idx = 0;
+                std::uint32_t ref_idx = 0, temp_mod_idx = 0;
                 //mod_idx += tap->daft_fwd_diff_posns[dpv_idx];
                 is_mod_unused = true;
 
@@ -1068,9 +1066,8 @@ void *decompactReads2Thread(void *arg) {
     //char my_bases_1[READ_LEN_MAX + EDIT_DISTANCE + 1]; //To account for indels
 
     tap->daft_fwd_reads.resize(((std::size_t)(index_end - index_start + 1)) * (tap->daft_in_args->rdLength + 3));
-    std::uint32_t loc_idx = 0, prev_locn = 0, curr_locn = 0;
-    std::uint32_t dct_idx = 0, dpv_idx = 0;
-    std::size_t fwd_idx = 0;
+    
+    
     std::uint32_t local_diffs_bwd[READ_LEN_MAX * 3][EDIT_DISTANCE][10];
     memset(local_diffs_bwd, 0, READ_LEN_MAX * 3 * EDIT_DISTANCE * 10 * sizeof(std::uint32_t));
     std::uint8_t  local_bases_bwd[READ_LEN_MAX * 3][EDIT_DISTANCE];
@@ -1083,10 +1080,10 @@ void *decompactReads2Thread(void *arg) {
     int prev_diff_loc_bwd = -1;
     std::uint32_t temp_ref_buf_pos_bwd = 0;
 
-    int aftr_diff_locs[32];
-    int aftr_diff_vals[32];
-    int diff_locs[32];
-    int diff_vals[32];
+    std::uint32_t aftr_diff_locs[32];
+    std::uint32_t aftr_diff_vals[32];
+    std::uint32_t diff_locs[32];
+    std::uint32_t diff_vals[32];
 
     char my_bases_2[READ_LEN_MAX];
     bool is_mod_unused;
@@ -1146,11 +1143,11 @@ void *decompactReads2Thread(void *arg) {
                 //   mb1_idx += 1; mb2_idx += 1;
                 //}
                 //dpv_idx += tap->daft_bwd_diff_counts[dct_idx];
-                std::uint32_t ref_idx = 0, mod_idx = 0, temp_mod_idx = 0;
+                std::uint32_t ref_idx = 0, temp_mod_idx = 0;
                 // mod_idx += tap->daft_bwd_diff_posns[dpv_idx];
                 is_mod_unused = true;
 
-                for (int k = 0; k < tap->daft_bwd_diff_counts[dct_idx], k++) {
+                for (int k = 0; k < tap->daft_bwd_diff_counts[dct_idx]; k++) {
                     aftr_diff_vals[k] = tap->daft_bwd_diff_values[dpv_idx];
                     diff_vals[k] = tap->daft_bwd_diff_values[dpv_idx];
                     temp_mod_idx += tap->daft_bwd_diff_posns[dpv_idx];
