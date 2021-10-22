@@ -693,140 +693,356 @@ void read_pe_data(DecompressArgsForThread * rpd_tap) {
 }
 //decode list of starting locations
 void *decompactReads1Thread(void *arg) {
-    struct DecompressArgsForThread * tap;
-    tap = (struct DecompressArgsForThread *) arg;
-    std::uint32_t indices_per_thread = ceil(((double) tap->daft_decom_ds->mapped_count)/((double) tap->daft_in_args->threadCount));
+    struct DecompressArgsForThread* tap;
+    tap = (struct DecompressArgsForThread*)arg;
+    std::uint32_t indices_per_thread = ceil(((double)tap->daft_decom_ds->mapped_count) / ((double)tap->daft_in_args->threadCount));
     std::uint32_t index_start = (tap->daft_thread_id) * indices_per_thread;
-    std::uint32_t index_end = ((tap->daft_thread_id+1) * indices_per_thread) - 1;
+    std::uint32_t index_end = ((tap->daft_thread_id + 1) * indices_per_thread) - 1;
     if ((tap->daft_decom_ds->mapped_count - 1) < index_end) {
         index_end = tap->daft_decom_ds->mapped_count - 1;
     }
     //std::cout << tap->daft_thread_id << " : " << index_start << " : " << index_end << std::endl;
-    
-    tap->daft_fwd_reads.resize(((std::size_t) (index_end - index_start + 1)) * (tap->daft_in_args->rdLength + 3));
+
+    tap->daft_fwd_reads.resize(((std::size_t)(index_end - index_start + 1)) * (tap->daft_in_args->rdLength + 3));
     std::uint32_t loc_idx = 0, prev_locn = 0, curr_locn = 0;
     std::uint32_t dct_idx = 0, dpv_idx = 0;
     std::size_t fwd_idx = 0;
+
+    tap->daft_fwd_reads.resize(((std::size_t)(index_end - index_start + 1)) * (tap->daft_in_args->rdLength + 3));
+    std::uint32_t loc_idx = 0, prev_locn = 0, curr_locn = 0;
+    std::uint32_t dct_idx = 0, dpv_idx = 0;
+    std::size_t fwd_idx = 0;
+    std::uint32_t local_diffs_fwd[READ_LEN_MAX * 3][EDIT_DISTANCE][10];
+    memset(local_diffs_fwd, 0, READ_LEN_MAX * 3 * EDIT_DISTANCE * 10 * sizeof(std::uint32_t));
+    std::uint8_t  local_bases_fwd[READ_LEN_MAX * 3][EDIT_DISTANCE];
+    memset(local_bases_fwd, 254, READ_LEN_MAX * 3 * EDIT_DISTANCE * sizeof(std::uint8_t));
+    std::uint32_t local_count_fwd[READ_LEN_MAX * 3][EDIT_DISTANCE];
+    memset(local_count_fwd, 0, READ_LEN_MAX * 3 * EDIT_DISTANCE * sizeof(std::uint32_t));
+    std::uint32_t local_usage_fwd[READ_LEN_MAX * 3];
+    memset(local_usage_fwd, 0, READ_LEN_MAX * 3 * sizeof(std::uint32_t));
+    int temp_diff_cnt_fwd = 0;
+    int prev_diff_loc_fwd = -1;
+    std::uint32_t temp_ref_buf_pos_fwd = 0;
+
+    int aftr_diff_locs[32];
+    int aftr_diff_vals[32];
+    int diff_locs[32];
+    int diff_vals[32];
+
     //char my_bases_1[READ_LEN_MAX + EDIT_DISTANCE + 1]; //To account for indels
     //char my_bases_2[READ_LEN_MAX];
     bool is_mod_unused;
+
+
     for (std::uint32_t i = index_start; i <= index_end; i++) {
-        if (tap->daft_fwd_locns[loc_idx] < 253) {
-            curr_locn = (std::uint32_t) tap->daft_fwd_locns[loc_idx];
-            loc_idx += 1;
-        } else if (tap->daft_fwd_locns[loc_idx] == 253) {
-            loc_idx += 1;
-            curr_locn = (std::uint32_t) tap->daft_fwd_locns[loc_idx];
-            loc_idx += 1;
-            curr_locn |= (((std::uint32_t) tap->daft_fwd_locns[loc_idx]) <<  8);
-            loc_idx += 1;
-        } else if (tap->daft_fwd_locns[loc_idx] == 254) {
-            loc_idx += 1;
-            curr_locn = (std::uint32_t) tap->daft_fwd_locns[loc_idx];
-            loc_idx += 1;
-            curr_locn |= (((std::uint32_t) tap->daft_fwd_locns[loc_idx]) <<  8);
-            loc_idx += 1;
-            curr_locn |= (((std::uint32_t) tap->daft_fwd_locns[loc_idx]) << 16);
-            loc_idx += 1;
-        } else {
-            loc_idx += 1;
-            curr_locn = (std::uint32_t) tap->daft_fwd_locns[loc_idx];
-            loc_idx += 1;
-            curr_locn |= (((std::uint32_t) tap->daft_fwd_locns[loc_idx]) <<  8);
-            loc_idx += 1;
-            curr_locn |= (((std::uint32_t) tap->daft_fwd_locns[loc_idx]) << 16);
-            loc_idx += 1;
-            curr_locn |= (((std::uint32_t) tap->daft_fwd_locns[loc_idx]) << 24);
-            loc_idx += 1;
-        }
-        curr_locn += prev_locn;
+        if (tap->daft_in_args->updateReference) {
+            if (tap->daft_fwd_locns[loc_idx] < 253) {
+                curr_locn = (std::uint32_t)tap->daft_fwd_locns[loc_idx];
+                loc_idx += 1;
+            }
+            else if (tap->daft_fwd_locns[loc_idx] == 253) {
+                loc_idx += 1;
+                curr_locn = (std::uint32_t)tap->daft_fwd_locns[loc_idx];
+                loc_idx += 1;
+                curr_locn |= (((std::uint32_t)tap->daft_fwd_locns[loc_idx]) << 8);
+                loc_idx += 1;
+            }
+            else if (tap->daft_fwd_locns[loc_idx] == 254) {
+                loc_idx += 1;
+                curr_locn = (std::uint32_t)tap->daft_fwd_locns[loc_idx];
+                loc_idx += 1;
+                curr_locn |= (((std::uint32_t)tap->daft_fwd_locns[loc_idx]) << 8);
+                loc_idx += 1;
+                curr_locn |= (((std::uint32_t)tap->daft_fwd_locns[loc_idx]) << 16);
+                loc_idx += 1;
+            }
+            else {
+                loc_idx += 1;
+                curr_locn = (std::uint32_t)tap->daft_fwd_locns[loc_idx];
+                loc_idx += 1;
+                curr_locn |= (((std::uint32_t)tap->daft_fwd_locns[loc_idx]) << 8);
+                loc_idx += 1;
+                curr_locn |= (((std::uint32_t)tap->daft_fwd_locns[loc_idx]) << 16);
+                loc_idx += 1;
+                curr_locn |= (((std::uint32_t)tap->daft_fwd_locns[loc_idx]) << 24);
+                loc_idx += 1;
+            }
+            curr_locn += prev_locn;
 #if !NDEBUG
-        //if (curr_locn > (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength)) {
-        //    curr_locn = tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength;
-        //}
-        //if (curr_locn > (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength + tap->daft_fwd_diff_counts[dct_idx])) {
-        //    std::cerr << "tap->daft_thread_id : " << tap->daft_thread_id << std::endl;
-        //    std::cerr << "prev_locn : " << prev_locn << std::endl;
-        //    std::cerr << "curr_locn : " << curr_locn << std::endl;
-        //    std::cerr << "i : " << i << std::endl;
-        //    std::cerr << "diff_count : " << ((std::uint32_t) tap->daft_fwd_diff_counts[dct_idx]) << std::endl;
-        //}
-        assert (curr_locn <= (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength));
-#endif
-        
-        tap->daft_fwd_reads.data()[fwd_idx] = '>';
-        fwd_idx += 1;
-        tap->daft_fwd_reads.data()[fwd_idx] = '\n';
-        fwd_idx += 1;
-        if (tap->daft_fwd_diff_counts[dct_idx]) {
-            //std::memcpy(my_bases_1, tap->daft_decom_ds->ref_bases + curr_locn, tap->daft_in_args->rdLength + EDIT_DISTANCE);
-            //std::uint32_t mb1_idx = 0, mb2_idx = 0;
-            //for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; j++) {
-            //   my_bases_2[mb2_idx] = my_bases_1[mb1_idx];
-            //   mb1_idx += 1; mb2_idx += 1;
+            //if (curr_locn > (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength)) {
+            //    curr_locn = tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength;
             //}
-            //dpv_idx += tap->daft_fwd_diff_counts[dct_idx];
-            //std::memcpy(tap->daft_fwd_reads.data() + fwd_idx, my_bases_2, tap->daft_in_args->rdLength);
-            //fwd_idx += tap->daft_in_args->rdLength;
-            std::uint32_t ref_idx = 0, mod_idx = 0;
-            mod_idx += tap->daft_fwd_diff_posns[dpv_idx];
-            is_mod_unused = true;
-            tap->daft_fwd_diff_counts[dct_idx] -= 1;
-            for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; ) {
-                if (is_mod_unused && (ref_idx == mod_idx)) {
-                    if (tap->daft_fwd_diff_values[dpv_idx] < 4) {
-                        //Substitution
-                        if (tap->daft_fwd_diff_values[dpv_idx] < charToUint8(tap->daft_decom_ds->ref_bases[curr_locn + ref_idx])) {
-                            tap->daft_fwd_reads.data()[fwd_idx] = Uint8Tochar(tap->daft_fwd_diff_values[dpv_idx]);
-                        } else {
-                            tap->daft_fwd_reads.data()[fwd_idx] = Uint8Tochar(tap->daft_fwd_diff_values[dpv_idx] + 1);
-                        }
-                        fwd_idx += 1; j += 1;
-                        ref_idx += 1;
-                    } else if (tap->daft_fwd_diff_values[dpv_idx] < 9) {
-                        //Insertion
-                        tap->daft_fwd_reads.data()[fwd_idx] = Uint8Tochar(tap->daft_fwd_diff_values[dpv_idx] - 4);
-                        fwd_idx += 1; j += 1;
-                    } else {
-                        //Deletion
-                        ref_idx += 1;
-                    }
+            //if (curr_locn > (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength + tap->daft_fwd_diff_counts[dct_idx])) {
+            //    std::cerr << "tap->daft_thread_id : " << tap->daft_thread_id << std::endl;
+            //    std::cerr << "prev_locn : " << prev_locn << std::endl;
+            //    std::cerr << "curr_locn : " << curr_locn << std::endl;
+            //    std::cerr << "i : " << i << std::endl;
+            //    std::cerr << "diff_count : " << ((std::uint32_t) tap->daft_fwd_diff_counts[dct_idx]) << std::endl;
+            //}
+            assert(curr_locn <= (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength));
+#endif
+
+            tap->daft_fwd_reads.data()[fwd_idx] = '>';
+            fwd_idx += 1;
+            tap->daft_fwd_reads.data()[fwd_idx] = '\n';
+            fwd_idx += 1;
+            if (tap->daft_fwd_diff_counts[dct_idx]) {
+                //std::memcpy(my_bases_1, tap->daft_decom_ds->ref_bases + curr_locn, tap->daft_in_args->rdLength + EDIT_DISTANCE);
+                //std::uint32_t mb1_idx = 0, mb2_idx = 0;
+                //for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; j++) {
+                //   my_bases_2[mb2_idx] = my_bases_1[mb1_idx];
+                //   mb1_idx += 1; mb2_idx += 1;
+                //}
+                //dpv_idx += tap->daft_fwd_diff_counts[dct_idx];
+                //std::memcpy(tap->daft_fwd_reads.data() + fwd_idx, my_bases_2, tap->daft_in_args->rdLength);
+                //fwd_idx += tap->daft_in_args->rdLength;
+                std::uint32_t ref_idx = 0, mod_idx = 0, temp_mod_idx = 0;
+                //mod_idx += tap->daft_fwd_diff_posns[dpv_idx];
+                is_mod_unused = true;
+
+                for (int k = 0; k < tap->daft_fwd_diff_counts[dct_idx]; k++) { //to set initial values in aftr_diff_locs and aftr_diff_vals
+                    aftr_diff_vals[k] = tap->daft_bwd_diff_values[dpv_idx];
+                    diff_vals[k] = tap->daft_bwd_diff_values[dpv_idx];
+                    temp_mod_idx += tap->daft_fwd_diff_posns[dpv_idx];
+                    aftr_diff_locs[k + 1] = temp_mod_idx;
+                    diff_locs[k + 1] = temp_mod_idx;
                     dpv_idx += 1;
-                    is_mod_unused = false;
-                    if (tap->daft_fwd_diff_counts[dct_idx]) {
-                        mod_idx += tap->daft_fwd_diff_posns[dpv_idx];
-                        is_mod_unused = true;
-                        tap->daft_fwd_diff_counts[dct_idx] -= 1;
+                }
+
+                //tap->daft_fwd_diff_counts[dct_idx] -= 1;
+                aftr_diff_locs[0] = 0;
+
+                for (std::uint32_t i = prev_locn; i < curr_locn; i++) {
+                    temp_diff_cnt_fwd = 0;
+                    prev_diff_loc_fwd = -1;
+                    if (prev_locn) {
+                        for (std::uint32_t i = prev_locn; i < curr_locn; i++) {
+                            temp_ref_buf_pos_fwd = i % (READ_LEN_MAX * 3);
+                            //                     assert (temp_ref_buf_pos_fwd < (READ_LEN_MAX*3));
+                            //                     assert (local_usage_fwd[temp_ref_buf_pos_fwd] < EDIT_DISTANCE);
+                            for (std::uint32_t j = 0; j < local_usage_fwd[temp_ref_buf_pos_fwd]; j++) {
+                                local_bases_fwd[temp_ref_buf_pos_fwd][j] = 254;
+                                local_count_fwd[temp_ref_buf_pos_fwd][j] = 0;
+                                for (std::uint32_t k = 0; k < 10; k++) {
+                                    local_diffs_fwd[temp_ref_buf_pos_fwd][j][k] = 0;
+                                }
+                            }
+                            local_usage_fwd[temp_ref_buf_pos_fwd] = 0;
+                        }
                     }
-                } else {
-                    tap->daft_fwd_reads.data()[fwd_idx] = tap->daft_decom_ds->ref_bases[curr_locn + ref_idx];
-                    fwd_idx += 1; j += 1;
-                    ref_idx += 1;
+                    for (int i = 1; i < tap->daft_fwd_diff_counts[dct_idx]; i++)
+                    {
+                        temp_ref_buf_pos_fwd = curr_locn + ref_idx;
+                        if (diff_locs[i] == prev_diff_loc_fwd) {
+                            temp_diff_cnt_fwd++;
+                        }
+                        else {
+                            prev_diff_loc_fwd = diff_locs[i];
+                            temp_diff_cnt_fwd = 1;
+                        }
+                        local_usage_fwd[temp_ref_buf_pos_fwd] = (std::uint32_t)temp_diff_cnt_fwd;
+
+                        if (local_bases_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1] == ((std::uint8_t)diff_vals[i])) {
+                            local_diffs_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1][diff_vals[i]] += 1;
+                            local_count_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1] += 1;
+                        }
+                        else {
+                            aftr_diff_locs[0] += 1;
+                            aftr_diff_locs[aftr_diff_locs[0]] = diff_locs[i];
+                            aftr_diff_vals[aftr_diff_locs[0]] = diff_vals[i];
+                            local_diffs_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1][diff_vals[i]] += 1;
+                            if (local_diffs_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1][diff_vals[i]] > (local_count_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1])) {
+                                local_count_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1] = local_diffs_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1][diff_vals[i]];
+                                local_bases_fwd[temp_ref_buf_pos_fwd][temp_diff_cnt_fwd - 1] = ((std::uint8_t)diff_vals[i]);
+                            }
+                        }
+                    }
+
+
+
+                }
+                aftr_diff_locs[0] -= 1;
+
+                for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; ) {
+                    if (is_mod_unused && (ref_idx == aftr_diff_locs[aftr_diff_locs[0]])) {
+                        if (aftr_diff_vals[aftr_diff_locs[0]] < 4) {
+                            //Substitution
+                            if (aftr_diff_vals[aftr_diff_locs[0]] < charToUint8(tap->daft_decom_ds->ref_bases[curr_locn + ref_idx])) {
+                                tap->daft_fwd_reads.data()[fwd_idx] = Uint8Tochar(aftr_diff_vals[aftr_diff_locs[0]]);
+                            }
+                            else {
+                                tap->daft_fwd_reads.data()[fwd_idx] = Uint8Tochar(aftr_diff_vals[aftr_diff_locs[0]] + 1);
+                            }
+                            fwd_idx += 1; j += 1;
+                            ref_idx += 1;
+                        }
+                        else if (aftr_diff_vals[aftr_diff_locs[0]] < 9) {
+                            //Insertion
+                            tap->daft_fwd_reads.data()[fwd_idx] = Uint8Tochar(aftr_diff_vals[aftr_diff_locs[0]] - 4);
+                            fwd_idx += 1; j += 1;
+                        }
+                        else {
+                            //Deletion
+                            ref_idx += 1;
+                        }
+                        //dpv_idx += 1;
+                        is_mod_unused = false;
+                        if (aftr_diff_locs[0]) {
+                            //mod_idx += tap->daft_fwd_diff_posns[dpv_idx];
+                            is_mod_unused = true;
+                            aftr_diff_locs[0] -= 1;
+                        }
+                    }
+                    else {
+                        tap->daft_fwd_reads.data()[fwd_idx] = tap->daft_decom_ds->ref_bases[curr_locn + ref_idx];
+                        fwd_idx += 1; j += 1;
+                        ref_idx += 1;
+                    }
                 }
             }
-        } else {
-            //No differences
-            std::memcpy(tap->daft_fwd_reads.data() + fwd_idx, tap->daft_decom_ds->ref_bases + curr_locn, tap->daft_in_args->rdLength);
-            fwd_idx += tap->daft_in_args->rdLength;
-        }
-        tap->daft_fwd_reads.data()[fwd_idx] = '\n';
-        fwd_idx += 1;
+            else {
+                //No differences
+                std::memcpy(tap->daft_fwd_reads.data() + fwd_idx, tap->daft_decom_ds->ref_bases + curr_locn, tap->daft_in_args->rdLength);
+                fwd_idx += tap->daft_in_args->rdLength;
+            }
+            tap->daft_fwd_reads.data()[fwd_idx] = '\n';
+            fwd_idx += 1;
 #if !NDEBUG
-        assert (tap->daft_fwd_diff_counts[dct_idx] == 0);
+            assert(tap->daft_fwd_diff_counts[dct_idx] == 0);
 #endif
-        dct_idx += 1;
-        
-        prev_locn = curr_locn;
+            dct_idx += 1;
+
+            prev_locn = curr_locn;
+        }
+        else {
+            if (tap->daft_fwd_locns[loc_idx] < 253) {
+                curr_locn = (std::uint32_t)tap->daft_fwd_locns[loc_idx];
+                loc_idx += 1;
+            }
+            else if (tap->daft_fwd_locns[loc_idx] == 253) {
+                loc_idx += 1;
+                curr_locn = (std::uint32_t)tap->daft_fwd_locns[loc_idx];
+                loc_idx += 1;
+                curr_locn |= (((std::uint32_t)tap->daft_fwd_locns[loc_idx]) << 8);
+                loc_idx += 1;
+            }
+            else if (tap->daft_fwd_locns[loc_idx] == 254) {
+                loc_idx += 1;
+                curr_locn = (std::uint32_t)tap->daft_fwd_locns[loc_idx];
+                loc_idx += 1;
+                curr_locn |= (((std::uint32_t)tap->daft_fwd_locns[loc_idx]) << 8);
+                loc_idx += 1;
+                curr_locn |= (((std::uint32_t)tap->daft_fwd_locns[loc_idx]) << 16);
+                loc_idx += 1;
+            }
+            else {
+                loc_idx += 1;
+                curr_locn = (std::uint32_t)tap->daft_fwd_locns[loc_idx];
+                loc_idx += 1;
+                curr_locn |= (((std::uint32_t)tap->daft_fwd_locns[loc_idx]) << 8);
+                loc_idx += 1;
+                curr_locn |= (((std::uint32_t)tap->daft_fwd_locns[loc_idx]) << 16);
+                loc_idx += 1;
+                curr_locn |= (((std::uint32_t)tap->daft_fwd_locns[loc_idx]) << 24);
+                loc_idx += 1;
+            }
+            curr_locn += prev_locn;
+#if !NDEBUG
+            //if (curr_locn > (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength)) {
+            //    curr_locn = tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength;
+            //}
+            //if (curr_locn > (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength + tap->daft_fwd_diff_counts[dct_idx])) {
+            //    std::cerr << "tap->daft_thread_id : " << tap->daft_thread_id << std::endl;
+            //    std::cerr << "prev_locn : " << prev_locn << std::endl;
+            //    std::cerr << "curr_locn : " << curr_locn << std::endl;
+            //    std::cerr << "i : " << i << std::endl;
+            //    std::cerr << "diff_count : " << ((std::uint32_t) tap->daft_fwd_diff_counts[dct_idx]) << std::endl;
+            //}
+            assert(curr_locn <= (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength));
+#endif
+
+            tap->daft_fwd_reads.data()[fwd_idx] = '>';
+            fwd_idx += 1;
+            tap->daft_fwd_reads.data()[fwd_idx] = '\n';
+            fwd_idx += 1;
+            if (tap->daft_fwd_diff_counts[dct_idx]) {
+                //std::memcpy(my_bases_1, tap->daft_decom_ds->ref_bases + curr_locn, tap->daft_in_args->rdLength + EDIT_DISTANCE);
+                //std::uint32_t mb1_idx = 0, mb2_idx = 0;
+                //for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; j++) {
+                //   my_bases_2[mb2_idx] = my_bases_1[mb1_idx];
+                //   mb1_idx += 1; mb2_idx += 1;
+                //}
+                //dpv_idx += tap->daft_fwd_diff_counts[dct_idx];
+                //std::memcpy(tap->daft_fwd_reads.data() + fwd_idx, my_bases_2, tap->daft_in_args->rdLength);
+                //fwd_idx += tap->daft_in_args->rdLength;
+                std::uint32_t ref_idx = 0, mod_idx = 0;
+                mod_idx += tap->daft_fwd_diff_posns[dpv_idx];
+                is_mod_unused = true;
+                tap->daft_fwd_diff_counts[dct_idx] -= 1;
+                for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; ) {
+                    if (is_mod_unused && (ref_idx == mod_idx)) {
+                        if (tap->daft_fwd_diff_values[dpv_idx] < 4) {
+                            //Substitution
+                            if (tap->daft_fwd_diff_values[dpv_idx] < charToUint8(tap->daft_decom_ds->ref_bases[curr_locn + ref_idx])) {
+                                tap->daft_fwd_reads.data()[fwd_idx] = Uint8Tochar(tap->daft_fwd_diff_values[dpv_idx]);
+                            }
+                            else {
+                                tap->daft_fwd_reads.data()[fwd_idx] = Uint8Tochar(tap->daft_fwd_diff_values[dpv_idx] + 1);
+                            }
+                            fwd_idx += 1; j += 1;
+                            ref_idx += 1;
+                        }
+                        else if (tap->daft_fwd_diff_values[dpv_idx] < 9) {
+                            //Insertion
+                            tap->daft_fwd_reads.data()[fwd_idx] = Uint8Tochar(tap->daft_fwd_diff_values[dpv_idx] - 4);
+                            fwd_idx += 1; j += 1;
+                        }
+                        else {
+                            //Deletion
+                            ref_idx += 1;
+                        }
+                        dpv_idx += 1;
+                        is_mod_unused = false;
+                        if (tap->daft_fwd_diff_counts[dct_idx]) {
+                            mod_idx += tap->daft_fwd_diff_posns[dpv_idx];
+                            is_mod_unused = true;
+                            tap->daft_fwd_diff_counts[dct_idx] -= 1;
+                        }
+                    }
+                    else {
+                        tap->daft_fwd_reads.data()[fwd_idx] = tap->daft_decom_ds->ref_bases[curr_locn + ref_idx];
+                        fwd_idx += 1; j += 1;
+                        ref_idx += 1;
+                    }
+                }
+            }
+            else {
+                //No differences
+                std::memcpy(tap->daft_fwd_reads.data() + fwd_idx, tap->daft_decom_ds->ref_bases + curr_locn, tap->daft_in_args->rdLength);
+                fwd_idx += tap->daft_in_args->rdLength;
+            }
+            tap->daft_fwd_reads.data()[fwd_idx] = '\n';
+            fwd_idx += 1;
+#if !NDEBUG
+            assert(tap->daft_fwd_diff_counts[dct_idx] == 0);
+#endif
+            dct_idx += 1;
+
+            prev_locn = curr_locn;
+        }
     }
-    assert (loc_idx == tap->daft_fwd_locns.size());
+
+
+
+    assert(loc_idx == tap->daft_fwd_locns.size());
     std::vector<std::uint8_t>().swap(tap->daft_fwd_locns); //Free memory
-    assert (dct_idx == tap->daft_fwd_diff_counts.size());
+    assert(dct_idx == tap->daft_fwd_diff_counts.size());
     std::vector<std::uint8_t>().swap(tap->daft_fwd_diff_counts); //Free memory
-    assert (dpv_idx == tap->daft_fwd_diff_posns.size());
+    assert(dpv_idx == tap->daft_fwd_diff_posns.size());
     std::vector<std::uint8_t>().swap(tap->daft_fwd_diff_posns); //Free memory
     std::vector<std::uint8_t>().swap(tap->daft_fwd_diff_values); //Free memory
-    assert (fwd_idx == tap->daft_fwd_reads.size());
-    
+    assert(fwd_idx == tap->daft_fwd_reads.size());
+
     return NULL;
 }
 /* Populate list of forward aligned reads and reverse 
@@ -834,221 +1050,531 @@ aligned reads
 Identify and update differing bases
 Compute reverse complement */
 void *decompactReads2Thread(void *arg) {
-    struct DecompressArgsForThread * tap;
-    tap = (struct DecompressArgsForThread *) arg;
-    std::uint32_t indices_per_thread = ceil(((double) tap->daft_decom_ds->mapped_count)/((double) tap->daft_in_args->threadCount));
+    struct DecompressArgsForThread* tap;
+    tap = (struct DecompressArgsForThread*)arg;
+    std::uint32_t indices_per_thread = ceil(((double)tap->daft_decom_ds->mapped_count) / ((double)tap->daft_in_args->threadCount));
     std::uint32_t index_start = (tap->daft_thread_id) * indices_per_thread;
-    std::uint32_t index_end = ((tap->daft_thread_id+1) * indices_per_thread) - 1;
+    std::uint32_t index_end = ((tap->daft_thread_id + 1) * indices_per_thread) - 1;
     if ((tap->daft_decom_ds->mapped_count - 1) < index_end) {
         index_end = tap->daft_decom_ds->mapped_count - 1;
     }
     //std::cout << tap->daft_thread_id << " : " << index_start << " : " << index_end << std::endl;
-    
-    assert (tap->daft_decom_ds->bwd_reads.size() == tap->daft_decom_ds->mapped_count);
+
+    assert(tap->daft_decom_ds->bwd_reads.size() == tap->daft_decom_ds->mapped_count);
     std::uint32_t loc_idx = 0, prev_locn = 0, curr_locn = 0;
     std::uint32_t dct_idx = 0, dpv_idx = 0;
     std::uint32_t pel_idx = 0, pep_idx = 0;
     std::uint32_t pe_posn; int64_t pe_locn_1; std::uint64_t pe_locn_2;
     //char my_bases_1[READ_LEN_MAX + EDIT_DISTANCE + 1]; //To account for indels
+
+    tap->daft_fwd_reads.resize(((std::size_t)(index_end - index_start + 1)) * (tap->daft_in_args->rdLength + 3));
+    std::uint32_t loc_idx = 0, prev_locn = 0, curr_locn = 0;
+    std::uint32_t dct_idx = 0, dpv_idx = 0;
+    std::size_t fwd_idx = 0;
+    std::uint32_t local_diffs_bwd[READ_LEN_MAX * 3][EDIT_DISTANCE][10];
+    memset(local_diffs_bwd, 0, READ_LEN_MAX * 3 * EDIT_DISTANCE * 10 * sizeof(std::uint32_t));
+    std::uint8_t  local_bases_bwd[READ_LEN_MAX * 3][EDIT_DISTANCE];
+    memset(local_bases_bwd, 254, READ_LEN_MAX * 3 * EDIT_DISTANCE * sizeof(std::uint8_t));
+    std::uint32_t local_count_bwd[READ_LEN_MAX * 3][EDIT_DISTANCE];
+    memset(local_count_bwd, 0, READ_LEN_MAX * 3 * EDIT_DISTANCE * sizeof(std::uint32_t));
+    std::uint32_t local_usage_bwd[READ_LEN_MAX * 3];
+    memset(local_usage_bwd, 0, READ_LEN_MAX * 3 * sizeof(std::uint32_t));
+    int temp_diff_cnt_bwd = 0;
+    int prev_diff_loc_bwd = -1;
+    std::uint32_t temp_ref_buf_pos_bwd = 0;
+
+    int aftr_diff_locs[32];
+    int aftr_diff_vals[32];
+    int diff_locs[32];
+    int diff_vals[32];
+
     char my_bases_2[READ_LEN_MAX];
     bool is_mod_unused;
     for (std::uint32_t i = index_start; i <= index_end; i++) {
-        if (tap->daft_bwd_locns[loc_idx] < 253) {
-            curr_locn = (std::uint32_t) tap->daft_bwd_locns[loc_idx];
-            loc_idx += 1;
-        } else if (tap->daft_bwd_locns[loc_idx] == 253) {
-            loc_idx += 1;
-            curr_locn = (std::uint32_t) tap->daft_bwd_locns[loc_idx];
-            loc_idx += 1;
-            curr_locn |= (((std::uint32_t) tap->daft_bwd_locns[loc_idx]) <<  8);
-            loc_idx += 1;
-        } else if (tap->daft_bwd_locns[loc_idx] == 254) {
-            loc_idx += 1;
-            curr_locn = (std::uint32_t) tap->daft_bwd_locns[loc_idx];
-            loc_idx += 1;
-            curr_locn |= (((std::uint32_t) tap->daft_bwd_locns[loc_idx]) <<  8);
-            loc_idx += 1;
-            curr_locn |= (((std::uint32_t) tap->daft_bwd_locns[loc_idx]) << 16);
-            loc_idx += 1;
-        } else {
-            loc_idx += 1;
-            curr_locn = (std::uint32_t) tap->daft_bwd_locns[loc_idx];
-            loc_idx += 1;
-            curr_locn |= (((std::uint32_t) tap->daft_bwd_locns[loc_idx]) <<  8);
-            loc_idx += 1;
-            curr_locn |= (((std::uint32_t) tap->daft_bwd_locns[loc_idx]) << 16);
-            loc_idx += 1;
-            curr_locn |= (((std::uint32_t) tap->daft_bwd_locns[loc_idx]) << 24);
-            loc_idx += 1;
-        }
-        curr_locn += prev_locn;
-#if !NDEBUG
-        //if (curr_locn > (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength)) {
-        //    curr_locn = tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength;
-        //}
-        //if (curr_locn > (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength + tap->daft_bwd_diff_counts[dct_idx])) {
-        //    std::cerr << "tap->daft_thread_id : " << tap->daft_thread_id << std::endl;
-        //    std::cerr << "prev_locn : " << prev_locn << std::endl;
-        //    std::cerr << "curr_locn : " << curr_locn << std::endl;
-        //    std::cerr << "i : " << i << std::endl;
-        //    std::cerr << "diff_count : " << ((std::uint32_t) tap->daft_bwd_diff_counts[dct_idx]) << std::endl;
-        //}
-        assert (curr_locn <= (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength));
-#endif
-        
-        if (tap->daft_bwd_diff_counts[dct_idx]) {
-            //std::memcpy(my_bases_1, tap->daft_decom_ds->ref_bases + curr_locn, tap->daft_in_args->rdLength + EDIT_DISTANCE);
-            //std::uint32_t mb1_idx = 0, mb2_idx = 0;
-            //for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; j++) {
-            //   my_bases_2[mb2_idx] = my_bases_1[mb1_idx];
-            //   mb1_idx += 1; mb2_idx += 1;
-            //}
-            //dpv_idx += tap->daft_bwd_diff_counts[dct_idx];
-            std::uint32_t ref_idx = 0, mod_idx = 0;
-            mod_idx += tap->daft_bwd_diff_posns[dpv_idx];
-            is_mod_unused = true;
-            tap->daft_bwd_diff_counts[dct_idx] -= 1;
-            for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; ) {
-                if (is_mod_unused && (ref_idx == mod_idx)) {
-                    if (tap->daft_bwd_diff_values[dpv_idx] < 4) {
-                        //Substitution
-                        if (tap->daft_bwd_diff_values[dpv_idx] < charToUint8(tap->daft_decom_ds->ref_bases[curr_locn + ref_idx])) {
-                            my_bases_2[j] = Uint8Tochar(tap->daft_bwd_diff_values[dpv_idx]);
-                        } else {
-                            my_bases_2[j] = Uint8Tochar(tap->daft_bwd_diff_values[dpv_idx] + 1);
-                        }
-                        j += 1;
-                        ref_idx += 1;
-                    } else if (tap->daft_bwd_diff_values[dpv_idx] < 9) {
-                        //Insertion
-                        my_bases_2[j] = Uint8Tochar(tap->daft_bwd_diff_values[dpv_idx] - 4);
-                        j += 1;
-                    } else {
-                        //Deletion
-                        ref_idx += 1;
-                    }
-                    dpv_idx += 1;
-                    is_mod_unused = false;
-                    if (tap->daft_bwd_diff_counts[dct_idx]) {
-                        mod_idx += tap->daft_bwd_diff_posns[dpv_idx];
-                        is_mod_unused = true;
-                        tap->daft_bwd_diff_counts[dct_idx] -= 1;
-                    }
-                } else {
-                    my_bases_2[j] = tap->daft_decom_ds->ref_bases[curr_locn + ref_idx];
-                    j += 1;
-                    ref_idx += 1;
-                }
+        if (tap->daft_in_args->updateReference) {
+            if (tap->daft_bwd_locns[loc_idx] < 253) {
+                curr_locn = (std::uint32_t)tap->daft_bwd_locns[loc_idx];
+                loc_idx += 1;
             }
-            compact_bwd_read(my_bases_2, tap->daft_in_args->rdLength, tap->daft_decom_ds->bwd_reads[i].read);
-        } else {
-            //No differences
-            compact_bwd_read(tap->daft_decom_ds->ref_bases + curr_locn, tap->daft_in_args->rdLength, tap->daft_decom_ds->bwd_reads[i].read);
-        }
+            else if (tap->daft_bwd_locns[loc_idx] == 253) {
+                loc_idx += 1;
+                curr_locn = (std::uint32_t)tap->daft_bwd_locns[loc_idx];
+                loc_idx += 1;
+                curr_locn |= (((std::uint32_t)tap->daft_bwd_locns[loc_idx]) << 8);
+                loc_idx += 1;
+            }
+            else if (tap->daft_bwd_locns[loc_idx] == 254) {
+                loc_idx += 1;
+                curr_locn = (std::uint32_t)tap->daft_bwd_locns[loc_idx];
+                loc_idx += 1;
+                curr_locn |= (((std::uint32_t)tap->daft_bwd_locns[loc_idx]) << 8);
+                loc_idx += 1;
+                curr_locn |= (((std::uint32_t)tap->daft_bwd_locns[loc_idx]) << 16);
+                loc_idx += 1;
+            }
+            else {
+                loc_idx += 1;
+                curr_locn = (std::uint32_t)tap->daft_bwd_locns[loc_idx];
+                loc_idx += 1;
+                curr_locn |= (((std::uint32_t)tap->daft_bwd_locns[loc_idx]) << 8);
+                loc_idx += 1;
+                curr_locn |= (((std::uint32_t)tap->daft_bwd_locns[loc_idx]) << 16);
+                loc_idx += 1;
+                curr_locn |= (((std::uint32_t)tap->daft_bwd_locns[loc_idx]) << 24);
+                loc_idx += 1;
+            }
+            curr_locn += prev_locn;
 #if !NDEBUG
-        assert (tap->daft_bwd_diff_counts[dct_idx] == 0);
+            //if (curr_locn > (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength)) {
+            //    curr_locn = tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength;
+            //}
+            //if (curr_locn > (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength + tap->daft_bwd_diff_counts[dct_idx])) {
+            //    std::cerr << "tap->daft_thread_id : " << tap->daft_thread_id << std::endl;
+            //    std::cerr << "prev_locn : " << prev_locn << std::endl;
+            //    std::cerr << "curr_locn : " << curr_locn << std::endl;
+            //    std::cerr << "i : " << i << std::endl;
+            //    std::cerr << "diff_count : " << ((std::uint32_t) tap->daft_bwd_diff_counts[dct_idx]) << std::endl;
+            //}
+            assert(curr_locn <= (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength));
 #endif
-        dct_idx += 1;
-        
-        prev_locn = curr_locn;
-        
-        if (tap->daft_pe_rel_posns[pep_idx] < 253) {
-            pe_posn = (std::uint32_t) tap->daft_pe_rel_posns[pep_idx];
-            pep_idx += 1;
-        } else if (tap->daft_pe_rel_posns[pep_idx] == 253) {
-            pep_idx += 1;
-            pe_posn = (std::uint32_t) tap->daft_pe_rel_posns[pep_idx];
-            pep_idx += 1;
-            pe_posn |= (((std::uint32_t) tap->daft_pe_rel_posns[pep_idx]) <<  8);
-            pep_idx += 1;
-        } else if (tap->daft_pe_rel_posns[pep_idx] == 254) {
-            pep_idx += 1;
-            pe_posn = (std::uint32_t) tap->daft_pe_rel_posns[pep_idx];
-            pep_idx += 1;
-            pe_posn |= (((std::uint32_t) tap->daft_pe_rel_posns[pep_idx]) <<  8);
-            pep_idx += 1;
-            pe_posn |= (((std::uint32_t) tap->daft_pe_rel_posns[pep_idx]) << 16);
-            pep_idx += 1;
-        } else {
-            pep_idx += 1;
-            pe_posn = (std::uint32_t) tap->daft_pe_rel_posns[pep_idx];
-            pep_idx += 1;
-            pe_posn |= (((std::uint32_t) tap->daft_pe_rel_posns[pep_idx]) <<  8);
-            pep_idx += 1;
-            pe_posn |= (((std::uint32_t) tap->daft_pe_rel_posns[pep_idx]) << 16);
-            pep_idx += 1;
-            pe_posn |= (((std::uint32_t) tap->daft_pe_rel_posns[pep_idx]) << 24);
-            pep_idx += 1;
-        }
-        tap->daft_decom_ds->bwd_reads[i].pe_rel_posn = pe_posn;
-        
-        if (tap->daft_pe_rel_locns[pel_idx] < 252) {
-            pe_locn_2 = (std::uint64_t) tap->daft_pe_rel_locns[pel_idx];
-            pel_idx += 1;
-        } else if (tap->daft_pe_rel_locns[pel_idx] == 252) {
-            pel_idx += 1;
-            pe_locn_2 = (std::uint64_t) tap->daft_pe_rel_locns[pel_idx];
-            pel_idx += 1;
-            pe_locn_2 |= (((std::uint64_t) tap->daft_pe_rel_locns[pel_idx]) <<  8);
-            pel_idx += 1;
-        } else if (tap->daft_pe_rel_locns[pel_idx] == 253) {
-            pel_idx += 1;
-            pe_locn_2 = (std::uint64_t) tap->daft_pe_rel_locns[pel_idx];
-            pel_idx += 1;
-            pe_locn_2 |= (((std::uint64_t) tap->daft_pe_rel_locns[pel_idx]) <<  8);
-            pel_idx += 1;
-            pe_locn_2 |= (((std::uint64_t) tap->daft_pe_rel_locns[pel_idx]) << 16);
-            pel_idx += 1;
-        } else if (tap->daft_pe_rel_locns[pel_idx] == 254) {
-            pel_idx += 1;
-            pe_locn_2 = (std::uint64_t) tap->daft_pe_rel_locns[pel_idx];
-            pel_idx += 1;
-            pe_locn_2 |= (((std::uint64_t) tap->daft_pe_rel_locns[pel_idx]) <<  8);
-            pel_idx += 1;
-            pe_locn_2 |= (((std::uint64_t) tap->daft_pe_rel_locns[pel_idx]) << 16);
-            pel_idx += 1;
-            pe_locn_2 |= (((std::uint64_t) tap->daft_pe_rel_locns[pel_idx]) << 24);
-            pel_idx += 1;
-        } else {
-            pel_idx += 1;
-            pe_locn_2 = (std::uint64_t) tap->daft_pe_rel_locns[pel_idx];
-            pel_idx += 1;
-            pe_locn_2 |= (((std::uint64_t) tap->daft_pe_rel_locns[pel_idx]) <<  8);
-            pel_idx += 1;
-            pe_locn_2 |= (((std::uint64_t) tap->daft_pe_rel_locns[pel_idx]) << 16);
-            pel_idx += 1;
-            pe_locn_2 |= (((std::uint64_t) tap->daft_pe_rel_locns[pel_idx]) << 24);
-            pel_idx += 1;
-            pe_locn_2 |= (((std::uint64_t) tap->daft_pe_rel_locns[pel_idx]) << 32);
-            pel_idx += 1;
-        }
-        pe_locn_1 = (int64_t) pe_locn_2;
-        if (pe_locn_1 == 0) {
-            //Do nothing
-        } else if (pe_locn_1 % 2) {
-            pe_locn_1 = (pe_locn_1 + 1) / 2;
-        } else {
-            pe_locn_1 = pe_locn_1 / (-2);
-        }
-        pe_locn_1 += tap->daft_decom_ds->pe_rel_locn_mean;
-        pe_locn_1 = ((int64_t) curr_locn) - pe_locn_1;
+
+            if (tap->daft_bwd_diff_counts[dct_idx]) {
+                //std::memcpy(my_bases_1, tap->daft_decom_ds->ref_bases + curr_locn, tap->daft_in_args->rdLength + EDIT_DISTANCE);
+                //std::uint32_t mb1_idx = 0, mb2_idx = 0;
+                //for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; j++) {
+                //   my_bases_2[mb2_idx] = my_bases_1[mb1_idx];
+                //   mb1_idx += 1; mb2_idx += 1;
+                //}
+                //dpv_idx += tap->daft_bwd_diff_counts[dct_idx];
+                std::uint32_t ref_idx = 0, mod_idx = 0, temp_mod_idx = 0;
+                // mod_idx += tap->daft_bwd_diff_posns[dpv_idx];
+                is_mod_unused = true;
+
+                for (int k = 0; k < tap->daft_bwd_diff_counts[dct_idx], k++) {
+                    aftr_diff_vals[k] = tap->daft_bwd_diff_values[dpv_idx];
+                    diff_vals[k] = tap->daft_bwd_diff_values[dpv_idx];
+                    temp_mod_idx += tap->daft_bwd_diff_posns[dpv_idx];
+                    aftr_diff_locs[k + 1] = temp_mod_idx;
+                    diff_locs[k + 1] = temp_mod_idx;
+                    dpv_idx += 1;
+                }
+                aftr_diff_locs[0] = 0;
+
+                //tap->daft_fwd_diff_counts[dct_idx] -= 1;
+
+
+                for (std::uint32_t i = prev_locn; i < curr_locn; i++) {
+                    temp_diff_cnt_bwd = 0;
+                    prev_diff_loc_bwd = -1;
+                    if (prev_locn) {
+                        for (std::uint32_t i = prev_locn; i < curr_locn; i++) {
+                            temp_ref_buf_pos_bwd = i % (READ_LEN_MAX * 3);
+                            //                     assert (temp_ref_buf_pos_fwd < (READ_LEN_MAX*3));
+                            //                     assert (local_usage_fwd[temp_ref_buf_pos_fwd] < EDIT_DISTANCE);
+                            for (std::uint32_t j = 0; j < local_usage_bwd[temp_ref_buf_pos_bwd]; j++) {
+                                local_bases_bwd[temp_ref_buf_pos_bwd][j] = 254;
+                                local_count_bwd[temp_ref_buf_pos_bwd][j] = 0;
+                                for (std::uint32_t k = 0; k < 10; k++) {
+                                    local_diffs_bwd[temp_ref_buf_pos_bwd][j][k] = 0;
+                                }
+                            }
+                            local_usage_bwd[temp_ref_buf_pos_bwd] = 0;
+                        }
+                    }
+                    for (int i = 1; i < tap->daft_bwd_diff_counts[dct_idx]; i++)
+                    {
+                        temp_ref_buf_pos_bwd = curr_locn + ref_idx;
+                        if (diff_locs[i] == prev_diff_loc_bwd) {
+                            temp_diff_cnt_bwd++;
+                        }
+                        else {
+                            prev_diff_loc_bwd = diff_locs[i];
+                            temp_diff_cnt_bwd = 1;
+                        }
+                        local_usage_bwd[temp_ref_buf_pos_bwd] = (std::uint32_t)temp_diff_cnt_bwd;
+
+                        if (local_bases_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1] == ((std::uint8_t)diff_vals[i])) {
+                            local_diffs_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1][diff_vals[i]] += 1;
+                            local_count_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1] += 1;
+                        }
+                        else {
+                            aftr_diff_locs[0] += 1;
+                            aftr_diff_locs[aftr_diff_locs[0]] = diff_locs[i];
+                            aftr_diff_vals[aftr_diff_locs[0]] = diff_vals[i];
+                            local_diffs_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1][diff_vals[i]] += 1;
+                            if (local_diffs_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1][diff_vals[i]] > (local_count_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1])) {
+                                local_count_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1] = local_diffs_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1][diff_vals[i]];
+                                local_bases_bwd[temp_ref_buf_pos_bwd][temp_diff_cnt_bwd - 1] = ((std::uint8_t)diff_vals[i]);
+                            }
+                        }
+                    }
+
+                    aftr_diff_locs[0] -= 1;
+
+
+
+                }
+
+                for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; ) {
+                    if (is_mod_unused && (ref_idx == aftr_diff_locs[aftr_diff_locs[0]])) {
+                        if (aftr_diff_vals[aftr_diff_locs[0]] < 4) {
+                            //Substitution
+                            if (aftr_diff_vals[aftr_diff_locs[0]] < charToUint8(tap->daft_decom_ds->ref_bases[curr_locn + ref_idx])) {
+                                my_bases_2[j] = Uint8Tochar(aftr_diff_vals[aftr_diff_locs[0]]);
+                            }
+                            else {
+                                my_bases_2[j] = Uint8Tochar(aftr_diff_vals[aftr_diff_locs[0]]);
+                            }
+                            j += 1;
+                            ref_idx += 1;
+                        }
+                        else if (aftr_diff_vals[aftr_diff_locs[0]] < 9) {
+                            //Insertion
+                            my_bases_2[j] = Uint8Tochar(aftr_diff_vals[aftr_diff_locs[0]] - 4);
+                            j += 1;
+                        }
+                        else {
+                            //Deletion
+                            ref_idx += 1;
+                        }
+                        //dpv_idx += 1;
+                        is_mod_unused = false;
+                        if (aftr_diff_locs[0]) {
+                            //mod_idx += tap->daft_bwd_diff_posns[dpv_idx];
+                            is_mod_unused = true;
+                            aftr_diff_locs[0] -= 1;
+                        }
+                    }
+                    else {
+                        my_bases_2[j] = tap->daft_decom_ds->ref_bases[curr_locn + ref_idx];
+                        j += 1;
+                        ref_idx += 1;
+                    }
+                }
+                compact_bwd_read(my_bases_2, tap->daft_in_args->rdLength, tap->daft_decom_ds->bwd_reads[i].read);
+            }
+            else {
+                //No differences
+                compact_bwd_read(tap->daft_decom_ds->ref_bases + curr_locn, tap->daft_in_args->rdLength, tap->daft_decom_ds->bwd_reads[i].read);
+            }
 #if !NDEBUG
-        assert (pe_locn_1 >= 0);
+            assert(tap->daft_bwd_diff_counts[dct_idx] == 0);
 #endif
-        tap->daft_decom_ds->bwd_reads[i].pe_location = (std::uint32_t) pe_locn_1;
+            dct_idx += 1;
+
+            prev_locn = curr_locn;
+
+            if (tap->daft_pe_rel_posns[pep_idx] < 253) {
+                pe_posn = (std::uint32_t)tap->daft_pe_rel_posns[pep_idx];
+                pep_idx += 1;
+            }
+            else if (tap->daft_pe_rel_posns[pep_idx] == 253) {
+                pep_idx += 1;
+                pe_posn = (std::uint32_t)tap->daft_pe_rel_posns[pep_idx];
+                pep_idx += 1;
+                pe_posn |= (((std::uint32_t)tap->daft_pe_rel_posns[pep_idx]) << 8);
+                pep_idx += 1;
+            }
+            else if (tap->daft_pe_rel_posns[pep_idx] == 254) {
+                pep_idx += 1;
+                pe_posn = (std::uint32_t)tap->daft_pe_rel_posns[pep_idx];
+                pep_idx += 1;
+                pe_posn |= (((std::uint32_t)tap->daft_pe_rel_posns[pep_idx]) << 8);
+                pep_idx += 1;
+                pe_posn |= (((std::uint32_t)tap->daft_pe_rel_posns[pep_idx]) << 16);
+                pep_idx += 1;
+            }
+            else {
+                pep_idx += 1;
+                pe_posn = (std::uint32_t)tap->daft_pe_rel_posns[pep_idx];
+                pep_idx += 1;
+                pe_posn |= (((std::uint32_t)tap->daft_pe_rel_posns[pep_idx]) << 8);
+                pep_idx += 1;
+                pe_posn |= (((std::uint32_t)tap->daft_pe_rel_posns[pep_idx]) << 16);
+                pep_idx += 1;
+                pe_posn |= (((std::uint32_t)tap->daft_pe_rel_posns[pep_idx]) << 24);
+                pep_idx += 1;
+            }
+            tap->daft_decom_ds->bwd_reads[i].pe_rel_posn = pe_posn;
+
+            if (tap->daft_pe_rel_locns[pel_idx] < 252) {
+                pe_locn_2 = (std::uint64_t)tap->daft_pe_rel_locns[pel_idx];
+                pel_idx += 1;
+            }
+            else if (tap->daft_pe_rel_locns[pel_idx] == 252) {
+                pel_idx += 1;
+                pe_locn_2 = (std::uint64_t)tap->daft_pe_rel_locns[pel_idx];
+                pel_idx += 1;
+                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 8);
+                pel_idx += 1;
+            }
+            else if (tap->daft_pe_rel_locns[pel_idx] == 253) {
+                pel_idx += 1;
+                pe_locn_2 = (std::uint64_t)tap->daft_pe_rel_locns[pel_idx];
+                pel_idx += 1;
+                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 8);
+                pel_idx += 1;
+                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 16);
+                pel_idx += 1;
+            }
+            else if (tap->daft_pe_rel_locns[pel_idx] == 254) {
+                pel_idx += 1;
+                pe_locn_2 = (std::uint64_t)tap->daft_pe_rel_locns[pel_idx];
+                pel_idx += 1;
+                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 8);
+                pel_idx += 1;
+                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 16);
+                pel_idx += 1;
+                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 24);
+                pel_idx += 1;
+            }
+            else {
+                pel_idx += 1;
+                pe_locn_2 = (std::uint64_t)tap->daft_pe_rel_locns[pel_idx];
+                pel_idx += 1;
+                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 8);
+                pel_idx += 1;
+                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 16);
+                pel_idx += 1;
+                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 24);
+                pel_idx += 1;
+                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 32);
+                pel_idx += 1;
+            }
+            pe_locn_1 = (int64_t)pe_locn_2;
+            if (pe_locn_1 == 0) {
+                //Do nothing
+            }
+            else if (pe_locn_1 % 2) {
+                pe_locn_1 = (pe_locn_1 + 1) / 2;
+            }
+            else {
+                pe_locn_1 = pe_locn_1 / (-2);
+            }
+            pe_locn_1 += tap->daft_decom_ds->pe_rel_locn_mean;
+            pe_locn_1 = ((int64_t)curr_locn) - pe_locn_1;
+#if !NDEBUG
+            assert(pe_locn_1 >= 0);
+#endif
+            tap->daft_decom_ds->bwd_reads[i].pe_location = (std::uint32_t)pe_locn_1;
+        }
+
+        else {
+            if (tap->daft_bwd_locns[loc_idx] < 253) {
+                curr_locn = (std::uint32_t)tap->daft_bwd_locns[loc_idx];
+                loc_idx += 1;
+            }
+            else if (tap->daft_bwd_locns[loc_idx] == 253) {
+                loc_idx += 1;
+                curr_locn = (std::uint32_t)tap->daft_bwd_locns[loc_idx];
+                loc_idx += 1;
+                curr_locn |= (((std::uint32_t)tap->daft_bwd_locns[loc_idx]) << 8);
+                loc_idx += 1;
+            }
+            else if (tap->daft_bwd_locns[loc_idx] == 254) {
+                loc_idx += 1;
+                curr_locn = (std::uint32_t)tap->daft_bwd_locns[loc_idx];
+                loc_idx += 1;
+                curr_locn |= (((std::uint32_t)tap->daft_bwd_locns[loc_idx]) << 8);
+                loc_idx += 1;
+                curr_locn |= (((std::uint32_t)tap->daft_bwd_locns[loc_idx]) << 16);
+                loc_idx += 1;
+            }
+            else {
+                loc_idx += 1;
+                curr_locn = (std::uint32_t)tap->daft_bwd_locns[loc_idx];
+                loc_idx += 1;
+                curr_locn |= (((std::uint32_t)tap->daft_bwd_locns[loc_idx]) << 8);
+                loc_idx += 1;
+                curr_locn |= (((std::uint32_t)tap->daft_bwd_locns[loc_idx]) << 16);
+                loc_idx += 1;
+                curr_locn |= (((std::uint32_t)tap->daft_bwd_locns[loc_idx]) << 24);
+                loc_idx += 1;
+            }
+            curr_locn += prev_locn;
+#if !NDEBUG
+            //if (curr_locn > (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength)) {
+            //    curr_locn = tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength;
+            //}
+            //if (curr_locn > (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength + tap->daft_bwd_diff_counts[dct_idx])) {
+            //    std::cerr << "tap->daft_thread_id : " << tap->daft_thread_id << std::endl;
+            //    std::cerr << "prev_locn : " << prev_locn << std::endl;
+            //    std::cerr << "curr_locn : " << curr_locn << std::endl;
+            //    std::cerr << "i : " << i << std::endl;
+            //    std::cerr << "diff_count : " << ((std::uint32_t) tap->daft_bwd_diff_counts[dct_idx]) << std::endl;
+            //}
+            assert(curr_locn <= (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength));
+#endif
+
+            if (tap->daft_bwd_diff_counts[dct_idx]) {
+                //std::memcpy(my_bases_1, tap->daft_decom_ds->ref_bases + curr_locn, tap->daft_in_args->rdLength + EDIT_DISTANCE);
+                //std::uint32_t mb1_idx = 0, mb2_idx = 0;
+                //for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; j++) {
+                //   my_bases_2[mb2_idx] = my_bases_1[mb1_idx];
+                //   mb1_idx += 1; mb2_idx += 1;
+                //}
+                //dpv_idx += tap->daft_bwd_diff_counts[dct_idx];
+                std::uint32_t ref_idx = 0, mod_idx = 0;
+                mod_idx += tap->daft_bwd_diff_posns[dpv_idx];
+                is_mod_unused = true;
+                tap->daft_bwd_diff_counts[dct_idx] -= 1;
+                for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; ) {
+                    if (is_mod_unused && (ref_idx == mod_idx)) {
+                        if (tap->daft_bwd_diff_values[dpv_idx] < 4) {
+                            //Substitution
+                            if (tap->daft_bwd_diff_values[dpv_idx] < charToUint8(tap->daft_decom_ds->ref_bases[curr_locn + ref_idx])) {
+                                my_bases_2[j] = Uint8Tochar(tap->daft_bwd_diff_values[dpv_idx]);
+                            }
+                            else {
+                                my_bases_2[j] = Uint8Tochar(tap->daft_bwd_diff_values[dpv_idx] + 1);
+                            }
+                            j += 1;
+                            ref_idx += 1;
+                        }
+                        else if (tap->daft_bwd_diff_values[dpv_idx] < 9) {
+                            //Insertion
+                            my_bases_2[j] = Uint8Tochar(tap->daft_bwd_diff_values[dpv_idx] - 4);
+                            j += 1;
+                        }
+                        else {
+                            //Deletion
+                            ref_idx += 1;
+                        }
+                        dpv_idx += 1;
+                        is_mod_unused = false;
+                        if (tap->daft_bwd_diff_counts[dct_idx]) {
+                            mod_idx += tap->daft_bwd_diff_posns[dpv_idx];
+                            is_mod_unused = true;
+                            tap->daft_bwd_diff_counts[dct_idx] -= 1;
+                        }
+                    }
+                    else {
+                        my_bases_2[j] = tap->daft_decom_ds->ref_bases[curr_locn + ref_idx];
+                        j += 1;
+                        ref_idx += 1;
+                    }
+                }
+                compact_bwd_read(my_bases_2, tap->daft_in_args->rdLength, tap->daft_decom_ds->bwd_reads[i].read);
+            }
+            else {
+                //No differences
+                compact_bwd_read(tap->daft_decom_ds->ref_bases + curr_locn, tap->daft_in_args->rdLength, tap->daft_decom_ds->bwd_reads[i].read);
+            }
+#if !NDEBUG
+            assert(tap->daft_bwd_diff_counts[dct_idx] == 0);
+#endif
+            dct_idx += 1;
+
+            prev_locn = curr_locn;
+
+            if (tap->daft_pe_rel_posns[pep_idx] < 253) {
+                pe_posn = (std::uint32_t)tap->daft_pe_rel_posns[pep_idx];
+                pep_idx += 1;
+            }
+            else if (tap->daft_pe_rel_posns[pep_idx] == 253) {
+                pep_idx += 1;
+                pe_posn = (std::uint32_t)tap->daft_pe_rel_posns[pep_idx];
+                pep_idx += 1;
+                pe_posn |= (((std::uint32_t)tap->daft_pe_rel_posns[pep_idx]) << 8);
+                pep_idx += 1;
+            }
+            else if (tap->daft_pe_rel_posns[pep_idx] == 254) {
+                pep_idx += 1;
+                pe_posn = (std::uint32_t)tap->daft_pe_rel_posns[pep_idx];
+                pep_idx += 1;
+                pe_posn |= (((std::uint32_t)tap->daft_pe_rel_posns[pep_idx]) << 8);
+                pep_idx += 1;
+                pe_posn |= (((std::uint32_t)tap->daft_pe_rel_posns[pep_idx]) << 16);
+                pep_idx += 1;
+            }
+            else {
+                pep_idx += 1;
+                pe_posn = (std::uint32_t)tap->daft_pe_rel_posns[pep_idx];
+                pep_idx += 1;
+                pe_posn |= (((std::uint32_t)tap->daft_pe_rel_posns[pep_idx]) << 8);
+                pep_idx += 1;
+                pe_posn |= (((std::uint32_t)tap->daft_pe_rel_posns[pep_idx]) << 16);
+                pep_idx += 1;
+                pe_posn |= (((std::uint32_t)tap->daft_pe_rel_posns[pep_idx]) << 24);
+                pep_idx += 1;
+            }
+            tap->daft_decom_ds->bwd_reads[i].pe_rel_posn = pe_posn;
+
+            if (tap->daft_pe_rel_locns[pel_idx] < 252) {
+                pe_locn_2 = (std::uint64_t)tap->daft_pe_rel_locns[pel_idx];
+                pel_idx += 1;
+            }
+            else if (tap->daft_pe_rel_locns[pel_idx] == 252) {
+                pel_idx += 1;
+                pe_locn_2 = (std::uint64_t)tap->daft_pe_rel_locns[pel_idx];
+                pel_idx += 1;
+                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 8);
+                pel_idx += 1;
+            }
+            else if (tap->daft_pe_rel_locns[pel_idx] == 253) {
+                pel_idx += 1;
+                pe_locn_2 = (std::uint64_t)tap->daft_pe_rel_locns[pel_idx];
+                pel_idx += 1;
+                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 8);
+                pel_idx += 1;
+                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 16);
+                pel_idx += 1;
+            }
+            else if (tap->daft_pe_rel_locns[pel_idx] == 254) {
+                pel_idx += 1;
+                pe_locn_2 = (std::uint64_t)tap->daft_pe_rel_locns[pel_idx];
+                pel_idx += 1;
+                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 8);
+                pel_idx += 1;
+                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 16);
+                pel_idx += 1;
+                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 24);
+                pel_idx += 1;
+            }
+            else {
+                pel_idx += 1;
+                pe_locn_2 = (std::uint64_t)tap->daft_pe_rel_locns[pel_idx];
+                pel_idx += 1;
+                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 8);
+                pel_idx += 1;
+                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 16);
+                pel_idx += 1;
+                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 24);
+                pel_idx += 1;
+                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 32);
+                pel_idx += 1;
+            }
+            pe_locn_1 = (int64_t)pe_locn_2;
+            if (pe_locn_1 == 0) {
+                //Do nothing
+            }
+            else if (pe_locn_1 % 2) {
+                pe_locn_1 = (pe_locn_1 + 1) / 2;
+            }
+            else {
+                pe_locn_1 = pe_locn_1 / (-2);
+            }
+            pe_locn_1 += tap->daft_decom_ds->pe_rel_locn_mean;
+            pe_locn_1 = ((int64_t)curr_locn) - pe_locn_1;
+#if !NDEBUG
+            assert(pe_locn_1 >= 0);
+#endif
+            tap->daft_decom_ds->bwd_reads[i].pe_location = (std::uint32_t)pe_locn_1;
+        }
+
     }
-    assert (loc_idx == tap->daft_bwd_locns.size());
+    assert(loc_idx == tap->daft_bwd_locns.size());
     std::vector<std::uint8_t>().swap(tap->daft_bwd_locns); //Free memory
-    assert (dct_idx == tap->daft_bwd_diff_counts.size());
+    assert(dct_idx == tap->daft_bwd_diff_counts.size());
     std::vector<std::uint8_t>().swap(tap->daft_bwd_diff_counts); //Free memory
-    assert (dpv_idx == tap->daft_bwd_diff_posns.size());
+    assert(dpv_idx == tap->daft_bwd_diff_posns.size());
     std::vector<std::uint8_t>().swap(tap->daft_bwd_diff_posns); //Free memory
     std::vector<std::uint8_t>().swap(tap->daft_bwd_diff_values); //Free memory
-    assert (pel_idx == tap->daft_pe_rel_locns.size());
+    assert(pel_idx == tap->daft_pe_rel_locns.size());
     std::vector<std::uint8_t>().swap(tap->daft_pe_rel_locns); //Free memory
-    assert (pep_idx == tap->daft_pe_rel_posns.size());
+    assert(pep_idx == tap->daft_pe_rel_posns.size());
     std::vector<std::uint8_t>().swap(tap->daft_pe_rel_posns); //Free memory
-    
+
     return NULL;
 }
 
