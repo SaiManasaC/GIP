@@ -17,7 +17,7 @@ CFLAGS = -g -Wall
 # Sort Transform is disabled by default and can be enabled by defining the
 # preprocessor macro LIBBSC_SORT_TRANSFORM_SUPPORT at compile time.
 
-#CFLAGS += -DLIBBSC_SORT_TRANSFORM_SUPPORT
+CFLAGS += -DLIBBSC_SORT_TRANSFORM_SUPPORT
 
 # Comment out CFLAGS line below for compatability mode for 32bit file sizes
 # (less than 2GB) and systems that have compilers that treat int as 64bit

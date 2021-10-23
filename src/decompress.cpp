@@ -703,12 +703,12 @@ void *decompactReads1Thread(void *arg) {
     }
     //std::cout << tap->daft_thread_id << " : " << index_start << " : " << index_end << std::endl;
 
-    tap->daft_fwd_reads.resize(((std::size_t)(index_end - index_start + 1)) * (tap->daft_in_args->rdLength + 3));
+    // tap->daft_fwd_reads.resize(((std::size_t)(index_end - index_start + 1)) * (tap->daft_in_args->rdLength + 3));
     
 
     tap->daft_fwd_reads.resize(((std::size_t)(index_end - index_start + 1)) * (tap->daft_in_args->rdLength + 3));
     std::uint32_t loc_idx = 0, prev_locn = 0, curr_locn = 0;
-    std::uint32_t dct_idx = 0, dpv_idx = 0;
+    std::uint32_t dct_idx = 0, dpv_idx = 0 , mod_idx = 0;
     std::size_t fwd_idx = 0;
     std::uint32_t local_diffs_fwd[READ_LEN_MAX * 3][EDIT_DISTANCE][10];
     memset(local_diffs_fwd, 0, READ_LEN_MAX * 3 * EDIT_DISTANCE * 10 * sizeof(std::uint32_t));
@@ -732,8 +732,8 @@ void *decompactReads1Thread(void *arg) {
     bool is_mod_unused;
 
 
-    for (std::uint32_t i = index_start; i <= index_end; i++) {
-        if (tap->daft_in_args->updateReference) {
+    if (tap->daft_in_args->updateReference) {
+        for (std::uint32_t i = index_start; i <= index_end; i++) {
             if (tap->daft_fwd_locns[loc_idx] < 253) {
                 curr_locn = (std::uint32_t)tap->daft_fwd_locns[loc_idx];
                 loc_idx += 1;
@@ -798,7 +798,7 @@ void *decompactReads1Thread(void *arg) {
                 //mod_idx += tap->daft_fwd_diff_posns[dpv_idx];
                 is_mod_unused = true;
 
-                for (int k = 0; k < tap->daft_fwd_diff_counts[dct_idx]; k++) { //to set initial values in aftr_diff_locs and aftr_diff_vals
+                for (std::uint32_t k = 0; k < tap->daft_fwd_diff_counts[dct_idx]; k++) { //to set initial values in aftr_diff_locs and aftr_diff_vals
                     aftr_diff_vals[k] = tap->daft_bwd_diff_values[dpv_idx];
                     diff_vals[k] = tap->daft_bwd_diff_values[dpv_idx];
                     temp_mod_idx += tap->daft_fwd_diff_posns[dpv_idx];
@@ -860,12 +860,12 @@ void *decompactReads1Thread(void *arg) {
 
                 }
                 aftr_diff_locs[0] -= 1;
-
+                
                 for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; ) {
-                    if (is_mod_unused && (ref_idx == aftr_diff_locs[aftr_diff_locs[0]])) {
-                        if (aftr_diff_vals[aftr_diff_locs[0]] < 4) {
+                    if (is_mod_unused && (ref_idx == aftr_diff_locs[mod_idx + 1])) {
+                        if (aftr_diff_vals[mod_idx] < 4) {
                             //Substitution
-                            if (aftr_diff_vals[aftr_diff_locs[0]] < charToUint8(tap->daft_decom_ds->ref_bases[curr_locn + ref_idx])) {
+                            if (aftr_diff_vals[mod_idx] < charToUint8(tap->daft_decom_ds->ref_bases[curr_locn + ref_idx])) {
                                 tap->daft_fwd_reads.data()[fwd_idx] = Uint8Tochar(aftr_diff_vals[aftr_diff_locs[0]]);
                             }
                             else {
@@ -874,7 +874,7 @@ void *decompactReads1Thread(void *arg) {
                             fwd_idx += 1; j += 1;
                             ref_idx += 1;
                         }
-                        else if (aftr_diff_vals[aftr_diff_locs[0]] < 9) {
+                        else if (aftr_diff_vals[mod_idx] < 9) {
                             //Insertion
                             tap->daft_fwd_reads.data()[fwd_idx] = Uint8Tochar(aftr_diff_vals[aftr_diff_locs[0]] - 4);
                             fwd_idx += 1; j += 1;
@@ -883,7 +883,7 @@ void *decompactReads1Thread(void *arg) {
                             //Deletion
                             ref_idx += 1;
                         }
-                        //dpv_idx += 1;
+                        mod_idx += 1;
                         is_mod_unused = false;
                         if (aftr_diff_locs[0]) {
                             //mod_idx += tap->daft_fwd_diff_posns[dpv_idx];
@@ -912,7 +912,20 @@ void *decompactReads1Thread(void *arg) {
 
             prev_locn = curr_locn;
         }
-        else {
+        assert(loc_idx == tap->daft_fwd_locns.size());
+        std::vector<std::uint8_t>().swap(tap->daft_fwd_locns); //Free memory
+        assert(dct_idx == tap->daft_fwd_diff_counts.size());
+        std::vector<std::uint8_t>().swap(tap->daft_fwd_diff_counts); //Free memory
+        assert(dpv_idx == tap->daft_fwd_diff_posns.size());
+        std::vector<std::uint8_t>().swap(tap->daft_fwd_diff_posns); //Free memory
+        std::vector<std::uint8_t>().swap(tap->daft_fwd_diff_values); //Free memory
+        assert(fwd_idx == tap->daft_fwd_reads.size());
+
+        return NULL;
+
+        }
+    else {
+        for (std::uint32_t i = index_start; i <= index_end; i++) {
             if (tap->daft_fwd_locns[loc_idx] < 253) {
                 curr_locn = (std::uint32_t)tap->daft_fwd_locns[loc_idx];
                 loc_idx += 1;
@@ -1028,21 +1041,21 @@ void *decompactReads1Thread(void *arg) {
 
             prev_locn = curr_locn;
         }
+        assert(loc_idx == tap->daft_fwd_locns.size());
+        std::vector<std::uint8_t>().swap(tap->daft_fwd_locns); //Free memory
+        assert(dct_idx == tap->daft_fwd_diff_counts.size());
+        std::vector<std::uint8_t>().swap(tap->daft_fwd_diff_counts); //Free memory
+        assert(dpv_idx == tap->daft_fwd_diff_posns.size());
+        std::vector<std::uint8_t>().swap(tap->daft_fwd_diff_posns); //Free memory
+        std::vector<std::uint8_t>().swap(tap->daft_fwd_diff_values); //Free memory
+        assert(fwd_idx == tap->daft_fwd_reads.size());
+
+        return NULL;
+       }
+               
     }
+ 
 
-
-
-    //assert(loc_idx == tap->daft_fwd_locns.size());
-    //std::vector<std::uint8_t>().swap(tap->daft_fwd_locns); //Free memory
-    //assert(dct_idx == tap->daft_fwd_diff_counts.size());
-    //std::vector<std::uint8_t>().swap(tap->daft_fwd_diff_counts); //Free memory
-    //assert(dpv_idx == tap->daft_fwd_diff_posns.size());
-    //std::vector<std::uint8_t>().swap(tap->daft_fwd_diff_posns); //Free memory
-    //std::vector<std::uint8_t>().swap(tap->daft_fwd_diff_values); //Free memory
-    //assert(fwd_idx == tap->daft_fwd_reads.size());
-
-    return NULL;
-}
 /* Populate list of forward aligned reads and reverse 
 aligned reads
 Identify and update differing bases
@@ -1060,7 +1073,7 @@ void *decompactReads2Thread(void *arg) {
 
     assert(tap->daft_decom_ds->bwd_reads.size() == tap->daft_decom_ds->mapped_count);
     std::uint32_t loc_idx = 0, prev_locn = 0, curr_locn = 0;
-    std::uint32_t dct_idx = 0, dpv_idx = 0;
+    std::uint32_t dct_idx = 0, dpv_idx = 0, mod_idx = 0;
     std::uint32_t pel_idx = 0, pep_idx = 0;
     std::uint32_t pe_posn; int64_t pe_locn_1; std::uint64_t pe_locn_2;
     //char my_bases_1[READ_LEN_MAX + EDIT_DISTANCE + 1]; //To account for indels
@@ -1087,8 +1100,11 @@ void *decompactReads2Thread(void *arg) {
 
     char my_bases_2[READ_LEN_MAX];
     bool is_mod_unused;
-    for (std::uint32_t i = index_start; i <= index_end; i++) {
-        if (tap->daft_in_args->updateReference) {
+    
+    if (tap->daft_in_args->updateReference)
+    {
+        for (std::uint32_t i = index_start; i <= index_end; i++)
+        {
             if (tap->daft_bwd_locns[loc_idx] < 253) {
                 curr_locn = (std::uint32_t)tap->daft_bwd_locns[loc_idx];
                 loc_idx += 1;
@@ -1205,36 +1221,33 @@ void *decompactReads2Thread(void *arg) {
                             }
                         }
                     }
-
-                    aftr_diff_locs[0] -= 1;
-
-
-
-                }
+                                        
+                    }
+                aftr_diff_locs[0] -= 1;
 
                 for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; ) {
-                    if (is_mod_unused && (ref_idx == aftr_diff_locs[aftr_diff_locs[0]])) {
-                        if (aftr_diff_vals[aftr_diff_locs[0]] < 4) {
+                    if (is_mod_unused && (ref_idx == aftr_diff_locs[mod_idx + 1])) {
+                        if (aftr_diff_vals[mod_idx] < 4) {
                             //Substitution
-                            if (aftr_diff_vals[aftr_diff_locs[0]] < charToUint8(tap->daft_decom_ds->ref_bases[curr_locn + ref_idx])) {
-                                my_bases_2[j] = Uint8Tochar(aftr_diff_vals[aftr_diff_locs[0]]);
+                            if (aftr_diff_vals[mod_idx] < charToUint8(tap->daft_decom_ds->ref_bases[curr_locn + ref_idx])) {
+                                my_bases_2[j] = Uint8Tochar(aftr_diff_vals[mod_idx]);
                             }
                             else {
-                                my_bases_2[j] = Uint8Tochar(aftr_diff_vals[aftr_diff_locs[0]]);
+                                my_bases_2[j] = Uint8Tochar(aftr_diff_vals[mod_idx]);
                             }
                             j += 1;
                             ref_idx += 1;
                         }
-                        else if (aftr_diff_vals[aftr_diff_locs[0]] < 9) {
+                        else if (aftr_diff_vals[mod_idx] < 9) {
                             //Insertion
-                            my_bases_2[j] = Uint8Tochar(aftr_diff_vals[aftr_diff_locs[0]] - 4);
+                            my_bases_2[j] = Uint8Tochar(aftr_diff_vals[mod_idx] - 4);
                             j += 1;
                         }
                         else {
                             //Deletion
                             ref_idx += 1;
                         }
-                        //dpv_idx += 1;
+                        mod_idx += 1;
                         is_mod_unused = false;
                         if (aftr_diff_locs[0]) {
                             //mod_idx += tap->daft_bwd_diff_posns[dpv_idx];
@@ -1355,225 +1368,248 @@ void *decompactReads2Thread(void *arg) {
 #endif
             tap->daft_decom_ds->bwd_reads[i].pe_location = (std::uint32_t)pe_locn_1;
         }
+     assert(loc_idx == tap->daft_bwd_locns.size());
+    std::vector<std::uint8_t>().swap(tap->daft_bwd_locns); //Free memory
+    assert(dct_idx == tap->daft_bwd_diff_counts.size());
+    std::vector<std::uint8_t>().swap(tap->daft_bwd_diff_counts); //Free memory
+    assert(dpv_idx == tap->daft_bwd_diff_posns.size());
+    std::vector<std::uint8_t>().swap(tap->daft_bwd_diff_posns); //Free memory
+    std::vector<std::uint8_t>().swap(tap->daft_bwd_diff_values); //Free memory
+    assert(pel_idx == tap->daft_pe_rel_locns.size());
+    std::vector<std::uint8_t>().swap(tap->daft_pe_rel_locns); //Free memory
+    assert(pep_idx == tap->daft_pe_rel_posns.size());
+    std::vector<std::uint8_t>().swap(tap->daft_pe_rel_posns); //Free memory
 
+        return NULL;
+
+
+        }
+    
+
+    else {
+    for (std::uint32_t i = index_start; i <= index_end; i++) {
+        if (tap->daft_bwd_locns[loc_idx] < 253) {
+            curr_locn = (std::uint32_t)tap->daft_bwd_locns[loc_idx];
+            loc_idx += 1;
+        }
+        else if (tap->daft_bwd_locns[loc_idx] == 253) {
+            loc_idx += 1;
+            curr_locn = (std::uint32_t)tap->daft_bwd_locns[loc_idx];
+            loc_idx += 1;
+            curr_locn |= (((std::uint32_t)tap->daft_bwd_locns[loc_idx]) << 8);
+            loc_idx += 1;
+        }
+        else if (tap->daft_bwd_locns[loc_idx] == 254) {
+            loc_idx += 1;
+            curr_locn = (std::uint32_t)tap->daft_bwd_locns[loc_idx];
+            loc_idx += 1;
+            curr_locn |= (((std::uint32_t)tap->daft_bwd_locns[loc_idx]) << 8);
+            loc_idx += 1;
+            curr_locn |= (((std::uint32_t)tap->daft_bwd_locns[loc_idx]) << 16);
+            loc_idx += 1;
+        }
         else {
-            if (tap->daft_bwd_locns[loc_idx] < 253) {
-                curr_locn = (std::uint32_t)tap->daft_bwd_locns[loc_idx];
-                loc_idx += 1;
-            }
-            else if (tap->daft_bwd_locns[loc_idx] == 253) {
-                loc_idx += 1;
-                curr_locn = (std::uint32_t)tap->daft_bwd_locns[loc_idx];
-                loc_idx += 1;
-                curr_locn |= (((std::uint32_t)tap->daft_bwd_locns[loc_idx]) << 8);
-                loc_idx += 1;
-            }
-            else if (tap->daft_bwd_locns[loc_idx] == 254) {
-                loc_idx += 1;
-                curr_locn = (std::uint32_t)tap->daft_bwd_locns[loc_idx];
-                loc_idx += 1;
-                curr_locn |= (((std::uint32_t)tap->daft_bwd_locns[loc_idx]) << 8);
-                loc_idx += 1;
-                curr_locn |= (((std::uint32_t)tap->daft_bwd_locns[loc_idx]) << 16);
-                loc_idx += 1;
-            }
-            else {
-                loc_idx += 1;
-                curr_locn = (std::uint32_t)tap->daft_bwd_locns[loc_idx];
-                loc_idx += 1;
-                curr_locn |= (((std::uint32_t)tap->daft_bwd_locns[loc_idx]) << 8);
-                loc_idx += 1;
-                curr_locn |= (((std::uint32_t)tap->daft_bwd_locns[loc_idx]) << 16);
-                loc_idx += 1;
-                curr_locn |= (((std::uint32_t)tap->daft_bwd_locns[loc_idx]) << 24);
-                loc_idx += 1;
-            }
-            curr_locn += prev_locn;
+            loc_idx += 1;
+            curr_locn = (std::uint32_t)tap->daft_bwd_locns[loc_idx];
+            loc_idx += 1;
+            curr_locn |= (((std::uint32_t)tap->daft_bwd_locns[loc_idx]) << 8);
+            loc_idx += 1;
+            curr_locn |= (((std::uint32_t)tap->daft_bwd_locns[loc_idx]) << 16);
+            loc_idx += 1;
+            curr_locn |= (((std::uint32_t)tap->daft_bwd_locns[loc_idx]) << 24);
+            loc_idx += 1;
+        }
+        curr_locn += prev_locn;
 #if !NDEBUG
-            //if (curr_locn > (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength)) {
-            //    curr_locn = tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength;
-            //}
-            //if (curr_locn > (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength + tap->daft_bwd_diff_counts[dct_idx])) {
-            //    std::cerr << "tap->daft_thread_id : " << tap->daft_thread_id << std::endl;
-            //    std::cerr << "prev_locn : " << prev_locn << std::endl;
-            //    std::cerr << "curr_locn : " << curr_locn << std::endl;
-            //    std::cerr << "i : " << i << std::endl;
-            //    std::cerr << "diff_count : " << ((std::uint32_t) tap->daft_bwd_diff_counts[dct_idx]) << std::endl;
-            //}
-            assert(curr_locn <= (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength));
+        //if (curr_locn > (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength)) {
+        //    curr_locn = tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength;
+        //}
+        //if (curr_locn > (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength + tap->daft_bwd_diff_counts[dct_idx])) {
+        //    std::cerr << "tap->daft_thread_id : " << tap->daft_thread_id << std::endl;
+        //    std::cerr << "prev_locn : " << prev_locn << std::endl;
+        //    std::cerr << "curr_locn : " << curr_locn << std::endl;
+        //    std::cerr << "i : " << i << std::endl;
+        //    std::cerr << "diff_count : " << ((std::uint32_t) tap->daft_bwd_diff_counts[dct_idx]) << std::endl;
+        //}
+        assert(curr_locn <= (tap->daft_decom_ds->ref_length - tap->daft_in_args->rdLength));
 #endif
 
-            if (tap->daft_bwd_diff_counts[dct_idx]) {
-                //std::memcpy(my_bases_1, tap->daft_decom_ds->ref_bases + curr_locn, tap->daft_in_args->rdLength + EDIT_DISTANCE);
-                //std::uint32_t mb1_idx = 0, mb2_idx = 0;
-                //for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; j++) {
-                //   my_bases_2[mb2_idx] = my_bases_1[mb1_idx];
-                //   mb1_idx += 1; mb2_idx += 1;
-                //}
-                //dpv_idx += tap->daft_bwd_diff_counts[dct_idx];
-                std::uint32_t ref_idx = 0, mod_idx = 0;
-                mod_idx += tap->daft_bwd_diff_posns[dpv_idx];
-                is_mod_unused = true;
-                tap->daft_bwd_diff_counts[dct_idx] -= 1;
-                for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; ) {
-                    if (is_mod_unused && (ref_idx == mod_idx)) {
-                        if (tap->daft_bwd_diff_values[dpv_idx] < 4) {
-                            //Substitution
-                            if (tap->daft_bwd_diff_values[dpv_idx] < charToUint8(tap->daft_decom_ds->ref_bases[curr_locn + ref_idx])) {
-                                my_bases_2[j] = Uint8Tochar(tap->daft_bwd_diff_values[dpv_idx]);
-                            }
-                            else {
-                                my_bases_2[j] = Uint8Tochar(tap->daft_bwd_diff_values[dpv_idx] + 1);
-                            }
-                            j += 1;
-                            ref_idx += 1;
-                        }
-                        else if (tap->daft_bwd_diff_values[dpv_idx] < 9) {
-                            //Insertion
-                            my_bases_2[j] = Uint8Tochar(tap->daft_bwd_diff_values[dpv_idx] - 4);
-                            j += 1;
+        if (tap->daft_bwd_diff_counts[dct_idx]) {
+            //std::memcpy(my_bases_1, tap->daft_decom_ds->ref_bases + curr_locn, tap->daft_in_args->rdLength + EDIT_DISTANCE);
+            //std::uint32_t mb1_idx = 0, mb2_idx = 0;
+            //for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; j++) {
+            //   my_bases_2[mb2_idx] = my_bases_1[mb1_idx];
+            //   mb1_idx += 1; mb2_idx += 1;
+            //}
+            //dpv_idx += tap->daft_bwd_diff_counts[dct_idx];
+            std::uint32_t ref_idx = 0, mod_idx = 0;
+            mod_idx += tap->daft_bwd_diff_posns[dpv_idx];
+            is_mod_unused = true;
+            tap->daft_bwd_diff_counts[dct_idx] -= 1;
+            for (std::uint32_t j = 0; j < tap->daft_in_args->rdLength; ) {
+                if (is_mod_unused && (ref_idx == mod_idx)) {
+                    if (tap->daft_bwd_diff_values[dpv_idx] < 4) {
+                        //Substitution
+                        if (tap->daft_bwd_diff_values[dpv_idx] < charToUint8(tap->daft_decom_ds->ref_bases[curr_locn + ref_idx])) {
+                            my_bases_2[j] = Uint8Tochar(tap->daft_bwd_diff_values[dpv_idx]);
                         }
                         else {
-                            //Deletion
-                            ref_idx += 1;
+                            my_bases_2[j] = Uint8Tochar(tap->daft_bwd_diff_values[dpv_idx] + 1);
                         }
-                        dpv_idx += 1;
-                        is_mod_unused = false;
-                        if (tap->daft_bwd_diff_counts[dct_idx]) {
-                            mod_idx += tap->daft_bwd_diff_posns[dpv_idx];
-                            is_mod_unused = true;
-                            tap->daft_bwd_diff_counts[dct_idx] -= 1;
-                        }
-                    }
-                    else {
-                        my_bases_2[j] = tap->daft_decom_ds->ref_bases[curr_locn + ref_idx];
                         j += 1;
                         ref_idx += 1;
                     }
+                    else if (tap->daft_bwd_diff_values[dpv_idx] < 9) {
+                        //Insertion
+                        my_bases_2[j] = Uint8Tochar(tap->daft_bwd_diff_values[dpv_idx] - 4);
+                        j += 1;
+                    }
+                    else {
+                        //Deletion
+                        ref_idx += 1;
+                    }
+                    dpv_idx += 1;
+                    is_mod_unused = false;
+                    if (tap->daft_bwd_diff_counts[dct_idx]) {
+                        mod_idx += tap->daft_bwd_diff_posns[dpv_idx];
+                        is_mod_unused = true;
+                        tap->daft_bwd_diff_counts[dct_idx] -= 1;
+                    }
                 }
-                compact_bwd_read(my_bases_2, tap->daft_in_args->rdLength, tap->daft_decom_ds->bwd_reads[i].read);
+                else {
+                    my_bases_2[j] = tap->daft_decom_ds->ref_bases[curr_locn + ref_idx];
+                    j += 1;
+                    ref_idx += 1;
+                }
             }
-            else {
-                //No differences
-                compact_bwd_read(tap->daft_decom_ds->ref_bases + curr_locn, tap->daft_in_args->rdLength, tap->daft_decom_ds->bwd_reads[i].read);
-            }
-#if !NDEBUG
-            assert(tap->daft_bwd_diff_counts[dct_idx] == 0);
-#endif
-            dct_idx += 1;
-
-            prev_locn = curr_locn;
-
-            if (tap->daft_pe_rel_posns[pep_idx] < 253) {
-                pe_posn = (std::uint32_t)tap->daft_pe_rel_posns[pep_idx];
-                pep_idx += 1;
-            }
-            else if (tap->daft_pe_rel_posns[pep_idx] == 253) {
-                pep_idx += 1;
-                pe_posn = (std::uint32_t)tap->daft_pe_rel_posns[pep_idx];
-                pep_idx += 1;
-                pe_posn |= (((std::uint32_t)tap->daft_pe_rel_posns[pep_idx]) << 8);
-                pep_idx += 1;
-            }
-            else if (tap->daft_pe_rel_posns[pep_idx] == 254) {
-                pep_idx += 1;
-                pe_posn = (std::uint32_t)tap->daft_pe_rel_posns[pep_idx];
-                pep_idx += 1;
-                pe_posn |= (((std::uint32_t)tap->daft_pe_rel_posns[pep_idx]) << 8);
-                pep_idx += 1;
-                pe_posn |= (((std::uint32_t)tap->daft_pe_rel_posns[pep_idx]) << 16);
-                pep_idx += 1;
-            }
-            else {
-                pep_idx += 1;
-                pe_posn = (std::uint32_t)tap->daft_pe_rel_posns[pep_idx];
-                pep_idx += 1;
-                pe_posn |= (((std::uint32_t)tap->daft_pe_rel_posns[pep_idx]) << 8);
-                pep_idx += 1;
-                pe_posn |= (((std::uint32_t)tap->daft_pe_rel_posns[pep_idx]) << 16);
-                pep_idx += 1;
-                pe_posn |= (((std::uint32_t)tap->daft_pe_rel_posns[pep_idx]) << 24);
-                pep_idx += 1;
-            }
-            tap->daft_decom_ds->bwd_reads[i].pe_rel_posn = pe_posn;
-
-            if (tap->daft_pe_rel_locns[pel_idx] < 252) {
-                pe_locn_2 = (std::uint64_t)tap->daft_pe_rel_locns[pel_idx];
-                pel_idx += 1;
-            }
-            else if (tap->daft_pe_rel_locns[pel_idx] == 252) {
-                pel_idx += 1;
-                pe_locn_2 = (std::uint64_t)tap->daft_pe_rel_locns[pel_idx];
-                pel_idx += 1;
-                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 8);
-                pel_idx += 1;
-            }
-            else if (tap->daft_pe_rel_locns[pel_idx] == 253) {
-                pel_idx += 1;
-                pe_locn_2 = (std::uint64_t)tap->daft_pe_rel_locns[pel_idx];
-                pel_idx += 1;
-                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 8);
-                pel_idx += 1;
-                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 16);
-                pel_idx += 1;
-            }
-            else if (tap->daft_pe_rel_locns[pel_idx] == 254) {
-                pel_idx += 1;
-                pe_locn_2 = (std::uint64_t)tap->daft_pe_rel_locns[pel_idx];
-                pel_idx += 1;
-                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 8);
-                pel_idx += 1;
-                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 16);
-                pel_idx += 1;
-                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 24);
-                pel_idx += 1;
-            }
-            else {
-                pel_idx += 1;
-                pe_locn_2 = (std::uint64_t)tap->daft_pe_rel_locns[pel_idx];
-                pel_idx += 1;
-                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 8);
-                pel_idx += 1;
-                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 16);
-                pel_idx += 1;
-                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 24);
-                pel_idx += 1;
-                pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 32);
-                pel_idx += 1;
-            }
-            pe_locn_1 = (int64_t)pe_locn_2;
-            if (pe_locn_1 == 0) {
-                //Do nothing
-            }
-            else if (pe_locn_1 % 2) {
-                pe_locn_1 = (pe_locn_1 + 1) / 2;
-            }
-            else {
-                pe_locn_1 = pe_locn_1 / (-2);
-            }
-            pe_locn_1 += tap->daft_decom_ds->pe_rel_locn_mean;
-            pe_locn_1 = ((int64_t)curr_locn) - pe_locn_1;
-#if !NDEBUG
-            assert(pe_locn_1 >= 0);
-#endif
-            tap->daft_decom_ds->bwd_reads[i].pe_location = (std::uint32_t)pe_locn_1;
+            compact_bwd_read(my_bases_2, tap->daft_in_args->rdLength, tap->daft_decom_ds->bwd_reads[i].read);
         }
+        else {
+            //No differences
+            compact_bwd_read(tap->daft_decom_ds->ref_bases + curr_locn, tap->daft_in_args->rdLength, tap->daft_decom_ds->bwd_reads[i].read);
+        }
+#if !NDEBUG
+        assert(tap->daft_bwd_diff_counts[dct_idx] == 0);
+#endif
+        dct_idx += 1;
+
+        prev_locn = curr_locn;
+
+        if (tap->daft_pe_rel_posns[pep_idx] < 253) {
+            pe_posn = (std::uint32_t)tap->daft_pe_rel_posns[pep_idx];
+            pep_idx += 1;
+        }
+        else if (tap->daft_pe_rel_posns[pep_idx] == 253) {
+            pep_idx += 1;
+            pe_posn = (std::uint32_t)tap->daft_pe_rel_posns[pep_idx];
+            pep_idx += 1;
+            pe_posn |= (((std::uint32_t)tap->daft_pe_rel_posns[pep_idx]) << 8);
+            pep_idx += 1;
+        }
+        else if (tap->daft_pe_rel_posns[pep_idx] == 254) {
+            pep_idx += 1;
+            pe_posn = (std::uint32_t)tap->daft_pe_rel_posns[pep_idx];
+            pep_idx += 1;
+            pe_posn |= (((std::uint32_t)tap->daft_pe_rel_posns[pep_idx]) << 8);
+            pep_idx += 1;
+            pe_posn |= (((std::uint32_t)tap->daft_pe_rel_posns[pep_idx]) << 16);
+            pep_idx += 1;
+        }
+        else {
+            pep_idx += 1;
+            pe_posn = (std::uint32_t)tap->daft_pe_rel_posns[pep_idx];
+            pep_idx += 1;
+            pe_posn |= (((std::uint32_t)tap->daft_pe_rel_posns[pep_idx]) << 8);
+            pep_idx += 1;
+            pe_posn |= (((std::uint32_t)tap->daft_pe_rel_posns[pep_idx]) << 16);
+            pep_idx += 1;
+            pe_posn |= (((std::uint32_t)tap->daft_pe_rel_posns[pep_idx]) << 24);
+            pep_idx += 1;
+        }
+        tap->daft_decom_ds->bwd_reads[i].pe_rel_posn = pe_posn;
+
+        if (tap->daft_pe_rel_locns[pel_idx] < 252) {
+            pe_locn_2 = (std::uint64_t)tap->daft_pe_rel_locns[pel_idx];
+            pel_idx += 1;
+        }
+        else if (tap->daft_pe_rel_locns[pel_idx] == 252) {
+            pel_idx += 1;
+            pe_locn_2 = (std::uint64_t)tap->daft_pe_rel_locns[pel_idx];
+            pel_idx += 1;
+            pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 8);
+            pel_idx += 1;
+        }
+        else if (tap->daft_pe_rel_locns[pel_idx] == 253) {
+            pel_idx += 1;
+            pe_locn_2 = (std::uint64_t)tap->daft_pe_rel_locns[pel_idx];
+            pel_idx += 1;
+            pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 8);
+            pel_idx += 1;
+            pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 16);
+            pel_idx += 1;
+        }
+        else if (tap->daft_pe_rel_locns[pel_idx] == 254) {
+            pel_idx += 1;
+            pe_locn_2 = (std::uint64_t)tap->daft_pe_rel_locns[pel_idx];
+            pel_idx += 1;
+            pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 8);
+            pel_idx += 1;
+            pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 16);
+            pel_idx += 1;
+            pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 24);
+            pel_idx += 1;
+        }
+        else {
+            pel_idx += 1;
+            pe_locn_2 = (std::uint64_t)tap->daft_pe_rel_locns[pel_idx];
+            pel_idx += 1;
+            pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 8);
+            pel_idx += 1;
+            pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 16);
+            pel_idx += 1;
+            pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 24);
+            pel_idx += 1;
+            pe_locn_2 |= (((std::uint64_t)tap->daft_pe_rel_locns[pel_idx]) << 32);
+            pel_idx += 1;
+        }
+        pe_locn_1 = (int64_t)pe_locn_2;
+        if (pe_locn_1 == 0) {
+            //Do nothing
+        }
+        else if (pe_locn_1 % 2) {
+            pe_locn_1 = (pe_locn_1 + 1) / 2;
+        }
+        else {
+            pe_locn_1 = pe_locn_1 / (-2);
+        }
+        pe_locn_1 += tap->daft_decom_ds->pe_rel_locn_mean;
+        pe_locn_1 = ((int64_t)curr_locn) - pe_locn_1;
+#if !NDEBUG
+        assert(pe_locn_1 >= 0);
+#endif
+        tap->daft_decom_ds->bwd_reads[i].pe_location = (std::uint32_t)pe_locn_1;
+    }
 
     }
-    //assert(loc_idx == tap->daft_bwd_locns.size());
-    //std::vector<std::uint8_t>().swap(tap->daft_bwd_locns); //Free memory
-    //assert(dct_idx == tap->daft_bwd_diff_counts.size());
-    //std::vector<std::uint8_t>().swap(tap->daft_bwd_diff_counts); //Free memory
-    //assert(dpv_idx == tap->daft_bwd_diff_posns.size());
-    //std::vector<std::uint8_t>().swap(tap->daft_bwd_diff_posns); //Free memory
-    //std::vector<std::uint8_t>().swap(tap->daft_bwd_diff_values); //Free memory
-    //assert(pel_idx == tap->daft_pe_rel_locns.size());
-    //std::vector<std::uint8_t>().swap(tap->daft_pe_rel_locns); //Free memory
-    //assert(pep_idx == tap->daft_pe_rel_posns.size());
-    //std::vector<std::uint8_t>().swap(tap->daft_pe_rel_posns); //Free memory
+    assert(loc_idx == tap->daft_bwd_locns.size());
+    std::vector<std::uint8_t>().swap(tap->daft_bwd_locns); //Free memory
+    assert(dct_idx == tap->daft_bwd_diff_counts.size());
+    std::vector<std::uint8_t>().swap(tap->daft_bwd_diff_counts); //Free memory
+    assert(dpv_idx == tap->daft_bwd_diff_posns.size());
+    std::vector<std::uint8_t>().swap(tap->daft_bwd_diff_posns); //Free memory
+    std::vector<std::uint8_t>().swap(tap->daft_bwd_diff_values); //Free memory
+    assert(pel_idx == tap->daft_pe_rel_locns.size());
+    std::vector<std::uint8_t>().swap(tap->daft_pe_rel_locns); //Free memory
+    assert(pep_idx == tap->daft_pe_rel_posns.size());
+    std::vector<std::uint8_t>().swap(tap->daft_pe_rel_posns); //Free memory
 
     return NULL;
-}
+
+
+    }
+
+    
+
 
 int perform_decompaction(InputArgs& in_args, DecompressionDataStructures& decomDS) {
     //File format : Thread count, Read length, Mapped PE read count, Unmapped PE read count
