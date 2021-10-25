@@ -906,7 +906,7 @@ void *decompactReads1Thread(void *arg) {
             tap->daft_fwd_reads.data()[fwd_idx] = '\n';
             fwd_idx += 1;
 #if !NDEBUG
-            assert(tap->daft_fwd_diff_counts[dct_idx] == 0);
+            //assert(tap->daft_fwd_diff_counts[dct_idx] == 0);
 #endif
             dct_idx += 1;
 
